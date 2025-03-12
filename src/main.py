@@ -38,6 +38,13 @@ def listen_for_connections(socket: socket, connections: queue.Queue):
         connections.put(conn)
 
 
+def send_idle_message(conn: socket, timeout: int):
+    while True:
+        time.sleep(timeout - 1)
+        conn.sendall(idle_message.encode())
+        print(f"sent idle message")
+
+
 def main() -> None:
     print(f"listening on port: {port}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,20 +56,28 @@ def main() -> None:
     listener_thread = threading.Thread(target=listen_for_connections, args=(server, connections), daemon=True)
     listener_thread.start()
 
-    while True:
-        conn =  connections.get()
+    send_idle_message_thread = None
 
-        with conn:
-            print(f"recieved data")
+    while True:
+        conn = connections.get()
+        while True:
             data = conn.recv(4096)
-            if data:
-                xml_data = data.decode()
-                xml = clean_xml(xml_data)
-                root = ET.fromstring(xml)
-                timeout = int(root.find("TimeoutResponse").text)
-                time.sleep(timeout -  1)
-                print(f"sending idle message")
-                conn.sendall(idle_message.encode())
+            if not data:
+                print("Client disconnected")
+                # Thread isnt cleaned up
+                break
+
+            print(f"recieved data")
+
+            xml_data = data.decode()
+            xml = clean_xml(xml_data)
+            root = ET.fromstring(xml)
+            timeout = int(root.find("TimeoutResponse").text)
+            # Im pretty sure this is not safe
+            if send_idle_message_thread and send_idle_message_thread.is_alive():
+                send_idle_message_thread.join()
+            send_idle_message_thread = threading.Thread(target=send_idle_message, args=(conn, timeout))
+            send_idle_message_thread.start()
 
 
 if __name__ == "__main__":
