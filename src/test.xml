@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<TransactionEMV>
+<MerchantTransactionID>2</MerchantTransactionID>
+<ZRNumber>2055</ZRNumber>
+<DeviceNumber>601</DeviceNumber>
+<DeviceType>6</DeviceType>
+<TerminalID>Term01</TerminalID>
+<AuthorizationType>Sale</AuthorizationType>
+<PurchaseDate>250312</PurchaseDate>
+<PurchaseTime>131206</PurchaseTime>
+<TimeoutResponse>10</TimeoutResponse>
+<TransparentMode>NO</TransparentMode>
+<TransactionAmount>10.00</TransactionAmount>
+<CurrencyCode>AUD</CurrencyCode>
+<LanguageCode>en</LanguageCode>
+<PurchaseTimeOffset>UTC+01</PurchaseTimeOffset>
+</TransactionEMV>
