@@ -1,5 +1,7 @@
+import queue
 import socket
 import xml.etree.ElementTree as ET
+import threading
 import time
 
 port = 2605
@@ -30,6 +32,12 @@ def clean_xml(xml: str) -> str:
     return xml.strip("\x02\x03")
 
 
+def listen_for_connections(socket: socket, connections: queue.Queue):
+    while True:
+        conn, _ = socket.accept()
+        connections.put(conn)
+
+
 def main() -> None:
     print(f"listening on port: {port}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,8 +45,13 @@ def main() -> None:
 
     server.listen(1)
 
+    connections = queue.Queue()
+    listener_thread = threading.Thread(target=listen_for_connections, args=(server, connections), daemon=True)
+    listener_thread.start()
+
     while True:
-        conn, _ = server.accept()
+        conn =  connections.get()
+
         with conn:
             print(f"recieved data")
             data = conn.recv(4096)
