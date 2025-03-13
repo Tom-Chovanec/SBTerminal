@@ -28,21 +28,56 @@ idle_message: str = """
 \x03
 """
 
+
+class ConnectionHandler:
+    def __init__(self):
+        self.idle_message_event = threading.Event()
+        self.idle_message_thread = None
+
+    def send_idle_message(self, conn: socket.socket, timeout: int):
+        self.idle_message_event.clear()
+        while not self.idle_message_event.wait(timeout - 1):
+            if self.idle_message_event.is_set():
+                break
+            conn.sendall(idle_message.encode())
+            print("INFO: Sent idle message")
+
+    def handle_connection(self, conn: socket.socket):
+        while True:
+            data = conn.recv(4096)
+            if not data:
+                print("INFO: Client disconnected")
+                if self.idle_message_thread and self.idle_message_thread.is_alive():
+                    self.idle_message_event.set()  # Signal the thread to stop
+                    self.idle_message_thread.join()  # Wait for it to exit
+                break
+
+            print("INFO: Received data")
+
+            xml_data = data.decode()
+            xml = clean_xml(xml_data)
+            root = ET.fromstring(xml)
+            timeout = int(root.find("TimeoutResponse").text)
+
+            if self.idle_message_thread and self.idle_message_thread.is_alive():
+                self.idle_message_event.set()  # Signal the thread to stop
+                self.idle_message_thread.join()  # Wait for it to exit
+
+            # Start a new idle message thread
+            self.idle_message_event.clear()
+            self.idle_message_thread = threading.Thread(
+                target=self.send_idle_message, args=(conn, timeout))
+            self.idle_message_thread.start()
+
+
 def clean_xml(xml: str) -> str:
     return xml.strip("\x02\x03")
 
 
-def listen_for_connections(socket: socket, connections: queue.Queue):
+def listen_for_connections(socket: socket.socket, connections: queue.Queue):
     while True:
         conn, _ = socket.accept()
         connections.put(conn)
-
-
-def send_idle_message(conn: socket, timeout: int):
-    while True:
-        time.sleep(timeout - 1)
-        conn.sendall(idle_message.encode())
-        print(f"sent idle message")
 
 
 def main() -> None:
@@ -53,32 +88,18 @@ def main() -> None:
     server.listen(1)
 
     connections = queue.Queue()
-    listener_thread = threading.Thread(target=listen_for_connections, args=(server, connections), daemon=True)
+    listener_thread = threading.Thread(
+        target=listen_for_connections, args=(server, connections), daemon=True)
     listener_thread.start()
+
+    connection_handler = ConnectionHandler()
 
     send_idle_message_thread = None
 
     while True:
         conn = connections.get()
-        while True:
-            data = conn.recv(4096)
-            if not data:
-                print("Client disconnected")
-                # Thread isnt cleaned up
-                break
-
-            print(f"recieved data")
-
-            xml_data = data.decode()
-            xml = clean_xml(xml_data)
-            root = ET.fromstring(xml)
-            timeout = int(root.find("TimeoutResponse").text)
-            # Im pretty sure this is not safe
-            if send_idle_message_thread and send_idle_message_thread.is_alive():
-                send_idle_message_thread.join()
-            send_idle_message_thread = threading.Thread(target=send_idle_message, args=(conn, timeout))
-            send_idle_message_thread.start()
+        connection_handler.handle_connection(conn)
 
 
 if __name__ == "__main__":
-   main()
+    main()
