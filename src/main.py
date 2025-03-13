@@ -2,7 +2,6 @@ import queue
 import socket
 import xml.etree.ElementTree as ET
 import threading
-import time
 
 port = 2605
 host = "127.0.0.1"
@@ -42,14 +41,17 @@ class ConnectionHandler:
             conn.sendall(idle_message.encode())
             print("INFO: Sent idle message")
 
+    def kill_idle_message_thread(self):
+        if self.idle_message_thread and self.idle_message_thread.is_alive():
+            self.idle_message_event.set()  # Signal the thread to stop
+            self.idle_message_thread.join()  # Wait for it to exit
+
     def handle_connection(self, conn: socket.socket):
         while True:
             data = conn.recv(4096)
             if not data:
                 print("INFO: Client disconnected")
-                if self.idle_message_thread and self.idle_message_thread.is_alive():
-                    self.idle_message_event.set()  # Signal the thread to stop
-                    self.idle_message_thread.join()  # Wait for it to exit
+                self.kill_idle_message_thread()
                 break
 
             print("INFO: Received data")
@@ -59,9 +61,7 @@ class ConnectionHandler:
             root = ET.fromstring(xml)
             timeout = int(root.find("TimeoutResponse").text)
 
-            if self.idle_message_thread and self.idle_message_thread.is_alive():
-                self.idle_message_event.set()  # Signal the thread to stop
-                self.idle_message_thread.join()  # Wait for it to exit
+            self.kill_idle_message_thread()
 
             # Start a new idle message thread
             self.idle_message_event.clear()
@@ -93,8 +93,6 @@ def main() -> None:
     listener_thread.start()
 
     connection_handler = ConnectionHandler()
-
-    send_idle_message_thread = None
 
     while True:
         conn = connections.get()
