@@ -1,12 +1,11 @@
-import queue
 import socket
 import xml.etree.ElementTree as ET
 import threading
+import time
 
 port = 2605
 host = "127.0.0.1"
 
-# IDLE message
 idle_message: str = """
 \x02
 <TerminalStatusEMV>
@@ -24,6 +23,79 @@ idle_message: str = """
 <ResponseCode>100</ResponseCode>
 <ResponseTextMessage>Idle</ResponseTextMessage>
 </TerminalStatusEMV>
+\x03
+"""
+
+card_in_message: str = """
+\x02
+<?xml version="1.0" ?>
+<TerminalStatusEMV>
+<MerchantTransactionID>12345</MerchantTransactionID>
+<ZRNumber>2010</ZRNumber>
+<DeviceNumber>601</DeviceNumber>
+<DeviceType>6</DeviceType>
+<TerminalID>Term01</TerminalID>
+<ResponseStatus>STATUS</ResponseStatus>
+<ResponseCode>101</ResponseCode>
+<ResponseTextMessage>Card inserted</ResponseTextMessage>
+</TerminalStatusEMV>
+\x03
+"""
+
+approved_message: str = """
+\x02
+<?xml version="1.0"?>
+<TransactionEMV>
+<AccountNumber>***********2345</AccountNumber>
+<HashedEpan>437BF2A684A75C61DFABCD</HashedEpan>
+<ApprovalCode>ABC12345678901234567</ApprovalCode>
+<ExpirationDate>0512</ExpirationDate>
+<CardIssuer>MC</CardIssuer>
+<CardType>CHIP</CardType>
+<MerchantTransactionID>12345</MerchantTransactionID>
+<ZRNumber>2010</ZRNumber>
+<DeviceNumber>601</DeviceNumber>
+<DeviceType>6</DeviceType>
+<TerminalID>Term01</TerminalID>
+<ResponseStatus>AUTHORIZED</ResponseStatus>
+<ResponseCode>000</ResponseCode>
+<ResponseTextMessage>APPROVAL 090882</ResponseTextMessage>
+<TransactionAmount>0.50</TransactionAmount>
+<CurrecyCode>CAD</CurrecyCode>
+<TransactionDate>130828</TransactionDate>
+<TransactionTime>142303</TransactionTime>
+<TransactionIdentifier>12345678901234567890
+</TransactionIdentifier>
+<BatchID>123456</BatchID>
+<CustomerReceipt>MID: ***33932
+TID: ****4236
+AID: 0000000031010
+MASTERCARD DEBIT
+PAN SEQ NO: 00
+ICC
+SALE
+AMOUNT CAD2.50
+PIN VERIFIED
+AUTH CODE:090882
+18/04/14 00:06
+RETAIN FOR YOUR RECORDS
+THANK YOU
+</CustomerReceipt>
+<MerchantReceipt> MID: ***33932
+TID: ****4236
+AID: 0000000031010
+MASTERCARD DEBIT
+PAN SEQ NO: 00
+ICC
+SALE
+AMOUNT CAD2.50
+PIN VERIFIED
+AUTH CODE: 090882
+18/04/14 00:06
+RETAIN FOR YOUR RECORDS
+THANK YOU
+</MerchantReceipt>
+</TransactionEMV>
 \x03
 """
 
@@ -61,6 +133,16 @@ class ConnectionHandler:
             root = ET.fromstring(xml)
             timeout = int(root.find("TimeoutResponse").text)
 
+            if root.find("AuthorizationType").text == "Sale":
+                time.sleep(2)
+                conn.sendall(card_in_message.encode())
+                print("INFO: Sent card in message")
+                time.sleep(2)
+                # The simulator complains that the message has a mistake,
+                # but it works
+                conn.sendall(approved_message.encode())
+                print("INFO: Sent payment approved message")
+
             self.kill_idle_message_thread()
 
             # Start a new idle message thread
@@ -74,12 +156,6 @@ def clean_xml(xml: str) -> str:
     return xml.strip("\x02\x03")
 
 
-def listen_for_connections(socket: socket.socket, connections: queue.Queue):
-    while True:
-        conn, _ = socket.accept()
-        connections.put(conn)
-
-
 def main() -> None:
     print(f"listening on port: {port}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,15 +163,11 @@ def main() -> None:
 
     server.listen(1)
 
-    connections = queue.Queue()
-    listener_thread = threading.Thread(
-        target=listen_for_connections, args=(server, connections), daemon=True)
-    listener_thread.start()
-
     connection_handler = ConnectionHandler()
 
     while True:
-        conn = connections.get()
+        conn, _ = server.accept()
+        print("INFO: Client connected ")
         connection_handler.handle_connection(conn)
 
 
