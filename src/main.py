@@ -152,10 +152,11 @@ class ConnectionHandler:
             self.kill_idle_message_thread()
 
             # Start a new idle message thread
-            self.idle_message_event.clear()
-            self.idle_message_thread = threading.Thread(
-                target=self.send_idle_message, args=(conn, timeout))
-            self.idle_message_thread.start()
+            if timeout != 0:
+                self.idle_message_event.clear()
+                self.idle_message_thread = threading.Thread(
+                    target=self.send_idle_message, args=(conn, timeout))
+                self.idle_message_thread.start()
 
 
 def clean_xml(xml: str) -> str:
