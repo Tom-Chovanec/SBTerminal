@@ -131,9 +131,15 @@ class ConnectionHandler:
             xml_data = data.decode()
             xml = clean_xml(xml_data)
             root = ET.fromstring(xml)
-            timeout = int(root.find("TimeoutResponse").text)
+            timeout_element = root.find("TimeoutResponse")
 
-            if root.find("AuthorizationType").text == "Sale":
+            timeout_element_text = timeout_element.text \
+                if timeout_element is not None else "0"
+
+            timeout = int(timeout_element_text) \
+                if timeout_element_text is not None else 0
+
+            if root.find("TransactionEMV"):
                 time.sleep(2)
                 conn.sendall(card_in_message.encode())
                 print("INFO: Sent card in message")
