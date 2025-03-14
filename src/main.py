@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 import threading
 import time
 
+from terminal_config import load_config, save_config
+
 port = 2605
 host = "127.0.0.1"
 
@@ -164,7 +166,9 @@ def clean_xml(xml: str) -> str:
 
 
 def main() -> None:
-    print(f"listening on port: {port}")
+    config = load_config()
+    save_config(config)
+    print(f"INFO: Listening on: {config['ip-address']}:{config['port']}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
 
