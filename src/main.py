@@ -167,7 +167,6 @@ def clean_xml(xml: str) -> str:
 
 def main() -> None:
     config = load_config()
-    save_config(config)
     print(f"INFO: Listening on: {config['ip-address']}:{config['port']}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))

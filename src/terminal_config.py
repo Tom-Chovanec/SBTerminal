@@ -42,7 +42,9 @@ def load_config() -> dict:
         yaml_config: dict = yaml.safe_load(file)
 
     if not yaml_config:
-        print(f'WARN: Config file "{filepath}" is empty, using default config')
+        print(f'WARN: Config file "{filepath}" is empty, \
+              creating new one using default config')
+        save_config(default_config)
         return default_config
 
     print(f'INFO: Loaded config file "{filepath}"')
