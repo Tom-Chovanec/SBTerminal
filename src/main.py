@@ -2,6 +2,7 @@ import socket
 import xml.etree.ElementTree as ET
 import threading
 import time
+from logger import log_event 
 
 port = 2605
 host = "127.0.0.1"
@@ -111,7 +112,7 @@ class ConnectionHandler:
             if self.idle_message_event.is_set():
                 break
             conn.sendall(idle_message.encode())
-            print("INFO: Sent idle message")
+            log_event("Sent idle message", "info")
 
     def kill_idle_message_thread(self):
         if self.idle_message_thread and self.idle_message_thread.is_alive():
@@ -122,11 +123,11 @@ class ConnectionHandler:
         while True:
             data = conn.recv(4096)
             if not data:
-                print("INFO: Client disconnected")
+                log_event("Client disconnected", "info")
                 self.kill_idle_message_thread()
                 break
 
-            print("INFO: Received data")
+            log_event("Received data", "info")
 
             xml_data = data.decode()
             xml = clean_xml(xml_data)
@@ -142,12 +143,12 @@ class ConnectionHandler:
             if root.find("TransactionEMV"):
                 time.sleep(2)
                 conn.sendall(card_in_message.encode())
-                print("INFO: Sent card in message")
+                log_event("Sent card in message", "info")
                 time.sleep(2)
                 # The simulator complains that the message has a mistake,
                 # but it works
                 conn.sendall(approved_message.encode())
-                print("INFO: Sent payment approved message")
+                log_event("Sent payment approved message", "info")
 
             self.kill_idle_message_thread()
 
@@ -164,7 +165,7 @@ def clean_xml(xml: str) -> str:
 
 
 def main() -> None:
-    print(f"listening on port: {port}")
+    log_event(f"Listening on port: {port}", "info")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
 
@@ -174,7 +175,7 @@ def main() -> None:
 
     while True:
         conn, _ = server.accept()
-        print("INFO: Client connected ")
+        log_event("Client connected", "info")
         connection_handler.handle_connection(conn)
 
 
