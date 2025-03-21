@@ -156,24 +156,28 @@ class ConnectionHandler:
             parsed_xml = XMLParser.parse(xml_cleaned)
 
             if config['send-rsp-before-timeout'] == 'true':
-                timeout = int(parsed_xml.get("TimeoutResponse", 0))
+                # this should probably be reworked
+                timeout = int(parsed_xml.get("TransactionEMV", {}).get("TimeoutResponse", 0))
 
                 self.kill_idle_message_thread()
 
                 # Start a new idle message thread
                 if timeout != 0:
+                    print(f'INFO: Setting timeout interval to "{timeout}"')
                     self.idle_message_event.clear()
                     self.idle_message_thread = threading.Thread(
                         target=self.send_idle_message, args=(conn, timeout))
                     self.idle_message_thread.start()
+                else:
+                    print('WARN: Timeout is "0"')
 
-            if "TransactionEMV" in parsed_xml:
-                time.sleep(2)
-                conn.sendall(card_in_message.encode())
-                print("INFO: Sent card in message")
-                time.sleep(2)
-                conn.sendall(approved_message.encode())
-                print("INFO: Sent payment approved message")
+            # if "TransactionEMV" in parsed_xml:
+            #     time.sleep(2)
+            #     conn.sendall(card_in_message.encode())
+            #     print("INFO: Sent card in message")
+            #     time.sleep(2)
+            #     conn.sendall(approved_message.encode())
+            #     print("INFO: Sent payment approved message")
 
 
 
