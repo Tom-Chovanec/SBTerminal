@@ -102,6 +102,28 @@ THANK YOU
 
 config = load_config()
 
+
+class XMLParser:
+    @staticmethod
+    def parse(xml_string: str) -> dict:
+        try:
+            root = ET.fromstring(xml_string)
+            return XMLParser._element_to_dict(root)
+        except ET.ParseError as e:
+            print(f"ERROR: Failed to parse XML - {e}")
+            return {}
+
+    @staticmethod
+    def _element_to_dict(element: ET.Element) -> dict:
+        parsed_data = {element.tag: {} if list(element) else element.text.strip() if element.text and element.text.strip() else ""}
+        for child in element:
+            if isinstance(parsed_data[element.tag], dict):  
+                parsed_data[element.tag].update(XMLParser._element_to_dict(child))
+            else:
+                parsed_data[element.tag] = XMLParser._element_to_dict(child)
+        return parsed_data
+
+
 class ConnectionHandler:
     def __init__(self):
         self.idle_message_event = threading.Event()
@@ -130,18 +152,11 @@ class ConnectionHandler:
 
             print("INFO: Received data")
 
-            xml_data = data.decode()
-            xml = clean_xml(xml_data)
-            root = ET.fromstring(xml)
+            xml_cleaned = clean_xml(data.decode())
+            parsed_xml = XMLParser.parse(xml_cleaned)
 
             if config['send-rsp-before-timeout'] == 'true':
-                timeout_element = root.find("TimeoutResponse")
-
-                timeout_element_text = timeout_element.text \
-                    if timeout_element is not None else "0"
-
-                timeout = int(timeout_element_text) \
-                    if timeout_element_text is not None else 0
+                timeout = int(parsed_xml.get("TimeoutResponse", 0))
 
                 self.kill_idle_message_thread()
 
@@ -152,7 +167,7 @@ class ConnectionHandler:
                         target=self.send_idle_message, args=(conn, timeout))
                     self.idle_message_thread.start()
 
-            if root.find("TransactionEMV"):
+            if "TransactionEMV" in parsed_xml:
                 time.sleep(2)
                 conn.sendall(card_in_message.encode())
                 print("INFO: Sent card in message")
