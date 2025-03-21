@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 import threading
 import time
 
+from terminal_config import load_config, save_config
+
 port = 2605
 host = "127.0.0.1"
 
@@ -64,8 +66,7 @@ approved_message: str = """
 <CurrecyCode>CAD</CurrecyCode>
 <TransactionDate>130828</TransactionDate>
 <TransactionTime>142303</TransactionTime>
-<TransactionIdentifier>12345678901234567890
-</TransactionIdentifier>
+<TransactionIdentifier>12345678901234567890</TransactionIdentifier>
 <BatchID>123456</BatchID>
 <CustomerReceipt>MID: ***33932
 TID: ****4236
@@ -98,6 +99,10 @@ THANK YOU
 </TransactionEMV>
 \x03
 """
+
+config = load_config()
+
+
 class XMLParser:
     @staticmethod
     def parse(xml_string: str) -> dict:
@@ -118,6 +123,7 @@ class XMLParser:
                 parsed_data[element.tag] = XMLParser._element_to_dict(child)
         return parsed_data
 
+
 class ConnectionHandler:
     def __init__(self):
         self.idle_message_event = threading.Event()
@@ -125,7 +131,7 @@ class ConnectionHandler:
 
     def send_idle_message(self, conn: socket.socket, timeout: int):
         self.idle_message_event.clear()
-        while not self.idle_message_event.wait(timeout - 1):
+        while not self.idle_message_event.wait(timeout - 2):
             if self.idle_message_event.is_set():
                 break
             conn.sendall(idle_message.encode())
@@ -149,26 +155,26 @@ class ConnectionHandler:
             xml_cleaned = clean_xml(data.decode())
             parsed_xml = XMLParser.parse(xml_cleaned)
 
-            timeout = int(parsed_xml.get("TimeoutResponse", 0))
+            if config['send-rsp-before-timeout'] == 'true':
+                timeout = int(parsed_xml.get("TimeoutResponse", 0))
+
+                self.kill_idle_message_thread()
+
+                # Start a new idle message thread
+                if timeout != 0:
+                    self.idle_message_event.clear()
+                    self.idle_message_thread = threading.Thread(
+                        target=self.send_idle_message, args=(conn, timeout))
+                    self.idle_message_thread.start()
 
             if "TransactionEMV" in parsed_xml:
                 time.sleep(2)
                 conn.sendall(card_in_message.encode())
                 print("INFO: Sent card in message")
                 time.sleep(2)
-                # The simulator complains that the message has a mistake,
-                # but it works
                 conn.sendall(approved_message.encode())
                 print("INFO: Sent payment approved message")
 
-            self.kill_idle_message_thread()
-
-            # Start a new idle message thread
-            if timeout != 0:
-                self.idle_message_event.clear()
-                self.idle_message_thread = threading.Thread(
-                    target=self.send_idle_message, args=(conn, timeout))
-                self.idle_message_thread.start()
 
 
 def clean_xml(xml: str) -> str:
@@ -176,7 +182,8 @@ def clean_xml(xml: str) -> str:
 
 
 def main() -> None:
-    print(f"listening on port: {port}")
+    save_config(config)
+    print(f"INFO: Listening on: {config['ip-address']}:{config['port']}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
 
