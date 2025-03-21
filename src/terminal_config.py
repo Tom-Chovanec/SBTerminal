@@ -2,13 +2,6 @@ import os
 import yaml
 
 
-# <MerchantTransactionID > 12345 < /MerchantTransactionID >
-# <ZRNumber > 2010 < /ZRNumber >
-# <DeviceNumber > 601 < /DeviceNumber >
-# <DeviceType > 6 < /DeviceType >
-# <TerminalID > Term01 < /TerminalID >
-
-
 def save_config(config: dict):
     dir = "data"
     filepath = f"{dir}/config.yaml"
@@ -23,7 +16,13 @@ def save_config(config: dict):
 
 default_config: dict = {
     'ip-address': '127.0.0.1',
-    'port': 2605
+    'port': 2605,
+    'send-rsp-before-timeout': 'true',
+    'card-issuer': 'VS',
+    'card-type': 'CHIP',
+    'card-number': '**********1234',
+    'expiration-date': '2512',
+    'hashed-card-number': '437B12A684A75C61235260',
 }
 
 
@@ -48,4 +47,12 @@ def load_config() -> dict:
         return default_config
 
     print(f'INFO: Loaded config file "{filepath}"')
+
+    original_keys = set(yaml_config.keys())
+    for key, value in default_config.items():
+        yaml_config.setdefault(key, value)
+    new_keys = set(yaml_config.keys()) - original_keys
+    if new_keys:
+        print(f'WARN: Keys "{new_keys}" are missing from "{filepath}", loading them from default config')
+
     return yaml_config

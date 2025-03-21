@@ -1,2 +1,8 @@
+card-issuer: VS
+card-number: '**********1234'
+card-type: CHIP
+expiration-date: '2512'
+hashed-card-number: 437B12A684A75C61235260
 ip-address: 127.0.0.1
 port: 2605
+send-rsp-before-timeout: 'true'
