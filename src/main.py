@@ -1,12 +1,8 @@
 import socket
 import xml.etree.ElementTree as ET
 import threading
-import time
 
-from terminal_config import load_config, save_config
-
-port = 2605
-host = "127.0.0.1"
+from terminal_config import load_config
 
 idle_message: str = """
 \x02
@@ -155,7 +151,7 @@ class ConnectionHandler:
             xml_cleaned = clean_xml(data.decode())
             parsed_xml = XMLParser.parse(xml_cleaned)
 
-            if config['send-rsp-before-timeout'] == 'true':
+            if config.send_rsp_before_timeout:
                 # this should probably be reworked
                 timeout = int(parsed_xml.get("TransactionEMV", {}).get("TimeoutResponse", 0))
 
@@ -186,10 +182,9 @@ def clean_xml(xml: str) -> str:
 
 
 def main() -> None:
-    save_config(config)
-    print(f"INFO: Listening on: {config['ip-address']}:{config['port']}")
+    print(f"INFO: Listening on: {config.ip_address}:{config.port}")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("127.0.0.1", port))
+    server.bind((config.ip_address, config.port))
 
     server.listen(1)
 
