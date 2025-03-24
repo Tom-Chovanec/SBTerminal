@@ -118,6 +118,25 @@ class XMLParser:
             else:
                 parsed_data[element.tag] = XMLParser._element_to_dict(child)
         return parsed_data
+    
+    @staticmethod
+    def dict_to_xml(data: dict) -> str:
+        def build_xml(element_name, value):
+            element = ET.Element(element_name)
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    element.append(build_xml(k, v))
+            else:
+                element.text = str(value)
+            return element
+        
+        if not isinstance(data, dict) or len(data) != 1:
+            raise ValueError("Input dictionary must have exactly one root element.")
+        
+        root_name, root_value = next(iter(data.items()))
+        root_element = build_xml(root_name, root_value)
+        
+        return ET.tostring(root_element, encoding="utf-8").decode()
 
 
 class ConnectionHandler:
