@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import threading
 
 from terminal_config import load_config
-from message_generator import MessageGenerator
+# from message_generator import MessageGenerator
 
 idle_message: str = """
 \x02

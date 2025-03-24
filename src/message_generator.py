@@ -52,3 +52,24 @@ class MessageGenerator:
                 'ResponseTextMessage': 'Idle',
             }
         }
+
+    @staticmethod
+    def getCardInMessage(
+        merchant_transaction_id: int,
+        zr_number: int,
+        device_number: int,
+        device_type: int,
+        terminal_id: str
+    ) -> dict:
+        return {
+            'TerminalStatusEMV': {
+                'MerchantTransactionID': merchant_transaction_id,
+                'ZRNumber': zr_number,
+                'DeviceNumber': device_number,
+                'DeviceType': device_type,
+                'TerminalID': terminal_id,
+                'ResponseStatus': 'STATUS',
+                'ResponseCode': '101',
+                'ResponseTextMessage': 'Card inserted',
+            }
+        }
