@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import threading
 
 from terminal_config import load_config
-# from message_generator import MessageGenerator
+from message_generator import MessageGenerator, DefaultTags, TerminalStatusResponseCode
 
 idle_message: str = """
 \x02
@@ -134,13 +134,14 @@ class ConnectionHandler:
             if self.idle_message_event.is_set():
                 break
 
-            # idle_message_dict = MessageGenerator.getIdleMessage(
-            #    merchant_transaction_id=2,
-            #    zr_number=2055,
-            #    device_number=601,
-            #    device_type=6,
-            #    terminal_id='Term01'
-            # )
+            default_tags = DefaultTags(2, 2055, 601, 6, 'Term01')
+            idle_message_dict = MessageGenerator.get_terminal_status_emv_message(
+                default_tags=default_tags,
+                status_code=TerminalStatusResponseCode.IDLE
+            )
+            print()
+            print(idle_message_dict)
+            print()
 
             conn.sendall(idle_message.encode())
             print("INFO: Sent idle message")
@@ -166,7 +167,7 @@ class ConnectionHandler:
             if config.send_rsp_before_timeout:
                 # this should probably be reworked
                 timeout = int(parsed_xml.get("TransactionEMV",
-                              {}).get("TimeoutResponse", 0))
+                                             {}).get("TimeoutResponse", 0))
 
                 self.kill_idle_message_thread()
 
