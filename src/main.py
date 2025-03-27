@@ -1,6 +1,7 @@
 import socket
 import xml.etree.ElementTree as ET
 import threading
+import xml.dom.minidom
 
 from terminal_config import load_config
 
@@ -136,7 +137,9 @@ class XMLParser:
         root_name, root_value = next(iter(data.items()))
         root_element = build_xml(root_name, root_value)
         
-        return ET.tostring(root_element, encoding="utf-8").decode()
+        raw_xml = ET.tostring(root_element, encoding="utf-8")
+        parsed_xml = xml.dom.minidom.parseString(raw_xml)
+        return parsed_xml.toprettyxml(indent="  ")
 
 
 class ConnectionHandler:
