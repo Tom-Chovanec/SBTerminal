@@ -4,6 +4,7 @@ import threading
 import xml.dom.minidom
 
 from terminal_config import load_config
+from message_generator import MessageGenerator, DefaultTags, TerminalStatusResponseCode
 
 idle_message: str = """
 \x02
@@ -112,10 +113,12 @@ class XMLParser:
 
     @staticmethod
     def _element_to_dict(element: ET.Element) -> dict:
-        parsed_data = {element.tag: {} if list(element) else element.text.strip() if element.text and element.text.strip() else ""}
+        parsed_data = {element.tag: {} if list(element) else element.text.strip(
+        ) if element.text and element.text.strip() else ""}
         for child in element:
-            if isinstance(parsed_data[element.tag], dict):  
-                parsed_data[element.tag].update(XMLParser._element_to_dict(child))
+            if isinstance(parsed_data[element.tag], dict):
+                parsed_data[element.tag].update(
+                    XMLParser._element_to_dict(child))
             else:
                 parsed_data[element.tag] = XMLParser._element_to_dict(child)
         return parsed_data
@@ -152,6 +155,16 @@ class ConnectionHandler:
         while not self.idle_message_event.wait(timeout - 2):
             if self.idle_message_event.is_set():
                 break
+
+            default_tags = DefaultTags(2, 2055, 601, 6, 'Term01')
+            idle_message_dict = MessageGenerator.get_terminal_status_emv_message(
+                default_tags=default_tags,
+                status_code=TerminalStatusResponseCode.IDLE
+            )
+            print()
+            print(idle_message_dict)
+            print()
+
             conn.sendall(idle_message.encode())
             print("INFO: Sent idle message")
 
@@ -175,7 +188,8 @@ class ConnectionHandler:
 
             if config.send_rsp_before_timeout:
                 # this should probably be reworked
-                timeout = int(parsed_xml.get("TransactionEMV", {}).get("TimeoutResponse", 0))
+                timeout = int(parsed_xml.get("TransactionEMV",
+                                             {}).get("TimeoutResponse", 0))
 
                 self.kill_idle_message_thread()
 
@@ -196,7 +210,6 @@ class ConnectionHandler:
             #     time.sleep(2)
             #     conn.sendall(approved_message.encode())
             #     print("INFO: Sent payment approved message")
-
 
 
 def clean_xml(xml: str) -> str:
