@@ -2,26 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 
-idle_message: str = """
-\x02
-<TerminalStatusEMV>
-<MerchantTransactionID>2</MerchantTransactionID>
-<ZRNumber>2055</ZRNumber>
-<DeviceNumber>601</DeviceNumber>
-<DeviceType>6</DeviceType>
-<TerminalID>Term01</TerminalID>
-<Date>250312</Date>
-<Time>140058</Time>
-<TimeOffset>UTC+01</TimeOffset>
-<VersionProtocol>1.25</VersionProtocol>
-<VersionEMVFirmware>123_10Q</VersionEMVFirmware>
-<ResponseStatus>STATUS</ResponseStatus>
-<ResponseCode>100</ResponseCode>
-<ResponseTextMessage>Idle</ResponseTextMessage>
-</TerminalStatusEMV>
-\x03
-"""
-
 
 @dataclass
 class DefaultTags:
