@@ -122,7 +122,7 @@ class XMLParser:
             else:
                 parsed_data[element.tag] = XMLParser._element_to_dict(child)
         return parsed_data
-    
+
     @staticmethod
     def dict_to_xml(data: dict) -> str:
         def build_xml(element_name, value):
@@ -133,16 +133,22 @@ class XMLParser:
             else:
                 element.text = str(value)
             return element
-        
+
         if not isinstance(data, dict) or len(data) != 1:
-            raise ValueError("Input dictionary must have exactly one root element.")
-        
+            raise ValueError(
+                "Input dictionary must have exactly one root element.")
+
         root_name, root_value = next(iter(data.items()))
         root_element = build_xml(root_name, root_value)
-        
+
         raw_xml = ET.tostring(root_element, encoding="utf-8")
         parsed_xml = xml.dom.minidom.parseString(raw_xml)
         return parsed_xml.toprettyxml(indent="  ")
+
+
+def sendXML(conn, xml: str):
+    padded_xml: str = f"\x02\n{xml}\x03"
+    conn.sendall(padded_xml.encode())
 
 
 class ConnectionHandler:
@@ -161,11 +167,11 @@ class ConnectionHandler:
                 default_tags=default_tags,
                 status_code=TerminalStatusResponseCode.IDLE
             )
-            print()
-            print(idle_message_dict)
-            print()
 
-            conn.sendall(idle_message.encode())
+            idle_message = XMLParser.dict_to_xml(idle_message_dict)
+
+            sendXML(conn, idle_message)
+
             print("INFO: Sent idle message")
 
     def kill_idle_message_thread(self):
