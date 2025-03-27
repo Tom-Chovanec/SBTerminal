@@ -66,6 +66,18 @@ class TerminalStatusResponseCode(Enum):
     FAULT_REQUEST = 999
 
 
+class TerminalMessageResponseCode(Enum):
+    EVENT = 800
+    ALARM = 801
+    JOURNAL = 802
+    INFO = 803
+
+
+class DisplayMessageLevel(Enum):
+    INFO = 0
+    ERROR = 1
+
+
 class MessageGenerator:
     @staticmethod
     def get_terminal_status_emv_message(
@@ -78,7 +90,7 @@ class MessageGenerator:
         time_str = now.strftime('%H%M%S')
         time_offset_str = f"UTC+{utc_offset.total_seconds() // 3600:.0f}"
         return {
-            "TerminalStatusEMV": {
+            'TerminalStatusEMV': {
                 # default tags
                 'MerchantTransactionID': default_tags.merchant_transaction_id,
                 'ZRNumber': default_tags.zr_number,
@@ -99,5 +111,52 @@ class MessageGenerator:
                 'ResponseStatus': 'STATUS' if status_code.value < 190 else 'ERROR',
                 'ResponseCode': status_code.value,
                 'ResponseTextMessage': status_code._name_.replace("_", " ").title(),
+            }
+        }
+
+    @staticmethod
+    def get_terminal_message_emv_message(
+        default_tags: DefaultTags,
+        response_code: TerminalMessageResponseCode,
+        response_text: str
+    ) -> dict:
+        return {
+            'TerminalStatusEMV': {
+                # default tags
+                'MerchantTransactionID': default_tags.merchant_transaction_id,
+                'ZRNumber': default_tags.zr_number,
+                'DeviceNumber': default_tags.device_number,
+                'DeviceType': default_tags.device_type,
+                'TerminalID': default_tags.terminal_id,
+
+                # result tags
+                'ResponseStatus': 'MESSAGE',
+                'ResponseCode': response_code.value,
+                'ResponseTextMessage': response_text
+            }
+        }
+
+    @staticmethod
+    def get_terminal_display_emv_message(
+        default_tags: DefaultTags,
+        display_message: str,
+        display_message_code: int,
+        display_message_level: DisplayMessageLevel,
+        language_code: str
+    ) -> dict:
+        return {
+            'TerminalStatusEMV': {
+                # default tags
+                'MerchantTransactionID': default_tags.merchant_transaction_id,
+                'ZRNumber': default_tags.zr_number,
+                'DeviceNumber': default_tags.device_number,
+                'DeviceType': default_tags.device_type,
+                'TerminalID': default_tags.terminal_id,
+
+                # Terminal Display message tag
+                'DisplayMessage': display_message,
+                'DisplayMessageCode': display_message_code,
+                'DisplayMessageLevel': display_message_level.name,
+                'LanguageCode': language_code
             }
         }
