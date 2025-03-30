@@ -12,7 +12,12 @@ class DefaultTags:
     terminal_id: str
 
 
-class TerminalStatusResponseCode(Enum):
+class AlphanumericEnum(str, Enum):
+    def __str__(self):
+        return self.value
+
+
+class TerminalStatusResponseCode(AlphanumericEnum):
     IDLE = 100
     CARD_INSERTED = 101
     CARD_REMOVED = 102
@@ -46,16 +51,109 @@ class TerminalStatusResponseCode(Enum):
     FAULT_REQUEST = 999
 
 
-class TerminalMessageResponseCode(Enum):
+class TerminalMessageResponseCode(AlphanumericEnum):
     EVENT = 800
     ALARM = 801
     JOURNAL = 802
     INFO = 803
 
 
-class DisplayMessageLevel(Enum):
+class DisplayMessageLevel(AlphanumericEnum):
     INFO = 0
     ERROR = 1
+
+
+class CardIssuerCode(AlphanumericEnum):
+    XX = 'Unknown / Non-Payment / Loyalty'
+    VS = 'Visa'
+    MC = 'Master Card'
+    CA = 'Master Card'
+    DC = 'Diners Club'
+    DN = 'Diners Club'
+    IN = 'Interac Canada'
+    AX = 'American Express'
+    JC = 'JCB – Japan Credit Bureau'
+    MA = 'Maestro'
+    CU = 'China UnionPay'
+    DS = 'Discover'
+
+
+class CardType(Enum):
+    MAGN = 'magnetic stripe'
+    CHIP = 'chipped card'
+    CLESS = 'contactless card'
+
+
+class TransactionResponseCode(AlphanumericEnum):
+    AUTHORISED = '000'
+    REFERRED = '001'
+    REFERRED_SPECIAL_CONDITIONS = '002'
+    INVALID_MERCHANT = '003'
+    HOLD_CARD = '004'
+    REFUSED = '005'
+    ERROR = '006'
+    HOLD_CARD_SPECIAL_CONDITIONS = '007'
+    APPROVE_AFTER_IDENTIFICATION = '008'
+    APPROVED_FOR_PARTIAL_AMOUNT = '010'
+    APPROVED_VIP = '011'
+    INVALID_TRANSACTION = '012'
+    INVALID_AMOUNT = '013'
+    INVALID_ACCOUNT = '014'
+    INVALID_CARD_ISSUER = '015'
+    APPROVED_UPDATE_TRACK3 = '016'
+    ANNULATION_BY_CLIENT = '017'
+    CUSTOMER_DISPUTE = '018'
+    RE_ENTER_TRANSACTION = '019'
+    INVALID_RESPONSE = '020'
+    NO_ACTION_TAKEN = '021'
+    SUSPECTED_MALFUNCTION = '022'
+    UNACCEPTABLE_TRANSACTION_FEE = '023'
+    ACCESS_DENIED = '028'
+    FORMAT_ERROR = '030'
+    UNKNOWN_ACQUIRER_ACCOUNT = '031'
+    CARD_EXPIRED = '033'
+    FRAUD_SUSPICION = '034'
+    SECURITY_CODE_EXPIRED = '038'
+    FUNCTION_NOT_SUPPORTED = '040'
+    LOST_CARD = '041'
+    STOLEN_CARD = '043'
+    LIMIT_EXCEEDED = '051'
+    CARD_EXPIRED_PICK_UP = '054'
+    INVALID_SECURITY_CODE = '055'
+    UNKNOWN_CARD = '056'
+    ILLEGAL_TRANSACTION = '057'
+    TRANSACTION_NOT_PERMITTED = '058'
+    RESTRICTED_CARD = '062'
+    SECURITY_RULES_VIOLATED = '063'
+    EXCEED_WITHDRAWAL_FREQUENCY = '065'
+    TRANSACTION_TIMED_OUT = '068'
+    EXCEED_PIN_TRIES = '075'
+    INVALID_DEBIT_ACCOUNT = '076'
+    INVALID_CREDIT_ACCOUNT = '077'
+    BLOCKED_FIRST_USED = '078'
+    CREDIT_ISSUER_UNAVAILABLE = '080'
+    PIN_CRYPROGRAPHIC_ERROR = '081'
+    INCORRECT_CCV = '082'
+    UNABLE_TO_VERIFY_PIN = '083'
+    REJECTED_BY_CARD_ISSUER = '085'
+    ISSUER_UNAVAILABLE = '091'
+    ROUTING_ERROR = '092'
+    TRANSACTION_CANNOT_COMPLETE = '093'
+    DUPLICATE_TRANSACTION = '094'
+    SYSTEM_ERROR = '096'
+    OFFLINE_AUTHORISED = '0Y1'
+    ISSUER_UNAVAILABLE_AUTHORISED = '0Y3'
+    OFFLINE_REFUSED = '0Z1'
+    ISSUER_UNAVAILABLE_REFUSED = '0Z3'
+    TRANSACTION_CANCELED_BY_MERCHANT = '200'
+    TRANSACTION_CANCELED_BY_TERMINAL_USER = '201'
+    TRANSACTION_CANCELED_AFTER_EXCEPTION = '202'
+    TRANSACTION_CANCELED_AFTER_REMOVED_CARD = '203'
+    TERMINAL_IS_DEACTIVATED = '296'
+    TERMINAL_IS_BUSY = '297'
+    TERMINAL_NOT_CONFIGURED = '298'
+    TERMINAL_UNAVAILABLE = '299'
+    FAULT_REQUEST = '999'
 
 
 class MessageGenerator:
@@ -138,5 +236,46 @@ class MessageGenerator:
                 'DisplayMessageCode': display_message_code,
                 'DisplayMessageLevel': display_message_level.name,
                 'LanguageCode': language_code
+            }
+        }
+
+    @staticmethod
+    def get_transaction_emv_response_message(
+        default_tags: DefaultTags,
+        response_code: TransactionResponseCode,
+        account_number: str,
+        # hashed_epan: str,
+        expiration_date: int,
+        card_issuer: CardIssuerCode,
+        card_type: CardType,
+        unaltered_track_data: str = None,
+    ) -> dict:
+        return {
+            'TransactionEMV': {
+                # default tags
+                'MerchantTransactionID': default_tags.merchant_transaction_id,
+                'ZRNumber': default_tags.zr_number,
+                'DeviceNumber': default_tags.device_number,
+                'DeviceType': default_tags.device_type,
+                'TerminalID': default_tags.terminal_id,
+
+                # card data tags
+                **({'UnalteredTrackData': unaltered_track_data}
+                   if unaltered_track_data is not None else {}),
+                'AccountNumber': account_number,
+                # 'HashedEpan': hashed_epan
+                'ExpirationDate': expiration_date,
+                'CardIssuer': card_issuer,
+                'CardType': card_type,
+
+                # result tags
+                # TODO: get the status from the code
+                'ResponseStatus': 'idk',
+                'ResponseCode': response_code,
+                # TODO: get proper text message
+                'ResponseTextMessage': response_code._name_.replace("_", " ")
+
+                # transaction tags
+                # TODO: complete transaction tags
             }
         }
