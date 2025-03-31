@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from enum import Enum
+import string
+import secrets
+import random
 
 
 @dataclass
@@ -180,8 +183,13 @@ def getTransactionResponseStatusFromCode(
     return 'INVALID_RESPONSED_CODE'
 
 
+def generate_random_an_string(length=20):
+    characters = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+
 class MessageGenerator:
-    @ staticmethod
+    @staticmethod
     def get_terminal_status_emv_message(
         default_tags: DefaultTags,
         status_code: TerminalStatusResponseCode
@@ -216,7 +224,7 @@ class MessageGenerator:
             }
         }
 
-    @ staticmethod
+    @staticmethod
     def get_terminal_message_emv_message(
         default_tags: DefaultTags,
         response_code: TerminalMessageResponseCode,
@@ -238,7 +246,7 @@ class MessageGenerator:
             }
         }
 
-    @ staticmethod
+    @staticmethod
     def get_terminal_display_emv_message(
         default_tags: DefaultTags,
         display_message: str,
@@ -263,17 +271,26 @@ class MessageGenerator:
             }
         }
 
-    @ staticmethod
+    @staticmethod
     def get_transaction_emv_response_message(
         default_tags: DefaultTags,
         response_code: TransactionResponseCode,
         account_number: str,
         # hashed_epan: str,
-        expiration_date: int,
+        expiration_date: str,
         card_issuer: CardIssuerCode,
         card_type: CardType,
         unaltered_track_data: str = '',
+        original_transaction_amount: float = 0.0,
+        surcharge_amount: float = 0.0,
+        discount_amount: float = 0.0,
+        currency_code: str = ''
     ) -> dict:
+        utc_offset = timedelta(hours=1)
+        now = datetime.now(timezone.utc) + utc_offset
+        date_str = now.strftime('%d%m%y')
+        time_str = now.strftime('%H%M%S')
+        time_offset_str = f"UTC+{utc_offset.total_seconds() // 3600:.0f}"
         return {
             'TransactionEMV': {
                 # default tags
@@ -296,9 +313,28 @@ class MessageGenerator:
                 'ResponseStatus':
                     getTransactionResponseStatusFromCode(response_code.value),
                 'ResponseCode': response_code,
-                'ResponseTextMessage': response_code._name_.replace("_", " ")
+                'ResponseTextMessage': response_code._name_.replace("_", " "),
 
                 # transaction tags
-                # TODO: complete transaction tags
+                **({'OriginalTransactionAmount': original_transaction_amount}
+                   if surcharge_amount != 0.0
+                   or discount_amount != 0.0 else {}),
+                'TransactionAmount': original_transaction_amount
+                    + surcharge_amount - discount_amount,
+                **({'SurchargeAmount': surcharge_amount}
+                   if surcharge_amount != 0.0 else {}),
+                **({'DiscountAmount': discount_amount}
+                   if discount_amount != 0.0 else {}),
+                # 'CardAmount': '0.00'
+                'ApprovalCode': generate_random_an_string(20),
+                'TransactionDate': date_str,
+                'TransactionTime': time_str,
+                'TransactionTimeOffset': time_offset_str,
+                'TransactionIdentifier': random.randint(10**19, 10**20 - 1),
+                # TODO: generate receipts
+                'MerchantReceipt': 'asdasd',
+                'CustomerReceipt': 'sadsad',
+                'CurrencyCode': currency_code,
+                'BarchID': generate_random_an_string(20)
             }
         }

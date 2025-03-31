@@ -4,10 +4,17 @@ import threading
 import xml.dom.minidom
 
 from terminal_config import load_config
-from message_generator import MessageGenerator, DefaultTags, TerminalStatusResponseCode
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType
 
 
 config = load_config()
+default_tags = DefaultTags(
+    merchant_transaction_id=2,
+    zr_number=2055,
+    device_number=601,
+    device_type=6,
+    terminal_id='Term01'
+)
 
 
 class XMLParser:
@@ -22,8 +29,11 @@ class XMLParser:
 
     @staticmethod
     def _element_to_dict(element: ET.Element) -> dict:
-        parsed_data = {element.tag: {} if list(element) else element.text.strip(
-        ) if element.text and element.text.strip() else ""}
+        parsed_data = {
+            element.tag: {} if list(element)
+            else element.text.strip() if element.text and element.text.strip()
+            else ""
+        }
         for child in element:
             if isinstance(parsed_data[element.tag], dict):
                 parsed_data[element.tag].update(
@@ -71,7 +81,6 @@ class ConnectionHandler:
             if self.idle_message_event.is_set():
                 break
 
-            default_tags = DefaultTags(2, 2055, 601, 6, 'Term01')
             idle_message_dict = MessageGenerator.get_terminal_status_emv_message(
                 default_tags=default_tags,
                 status_code=TerminalStatusResponseCode.IDLE
@@ -117,14 +126,6 @@ class ConnectionHandler:
                     self.idle_message_thread.start()
                 else:
                     print('WARN: Timeout is "0"')
-
-            # if "TransactionEMV" in parsed_xml:
-            #     time.sleep(2)
-            #     conn.sendall(card_in_message.encode())
-            #     print("INFO: Sent card in message")
-            #     time.sleep(2)
-            #     conn.sendall(approved_message.encode())
-            #     print("INFO: Sent payment approved message")
 
 
 def clean_xml(xml: str) -> str:
