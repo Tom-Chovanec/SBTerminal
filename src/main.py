@@ -4,101 +4,18 @@ import threading
 
 from xml_parser import XMLParser
 from terminal_config import load_config
-from message_generator import MessageGenerator, DefaultTags, TerminalStatusResponseCode
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType
 
-idle_message: str = """
-\x02
-<TerminalStatusEMV>
-<MerchantTransactionID>2</MerchantTransactionID>
-<ZRNumber>2055</ZRNumber>
-<DeviceNumber>601</DeviceNumber>
-<DeviceType>6</DeviceType>
-<TerminalID>Term01</TerminalID>
-<Date>250312</Date>
-<Time>140058</Time>
-<TimeOffset>UTC+01</TimeOffset>
-<VersionProtocol>1.25</VersionProtocol>
-<VersionEMVFirmware>123_10Q</VersionEMVFirmware>
-<ResponseStatus>STATUS</ResponseStatus>
-<ResponseCode>100</ResponseCode>
-<ResponseTextMessage>Idle</ResponseTextMessage>
-</TerminalStatusEMV>
-\x03
-"""
-
-card_in_message: str = """
-\x02
-<?xml version="1.0" ?>
-<TerminalStatusEMV>
-<MerchantTransactionID>12345</MerchantTransactionID>
-<ZRNumber>2010</ZRNumber>
-<DeviceNumber>601</DeviceNumber>
-<DeviceType>6</DeviceType>
-<TerminalID>Term01</TerminalID>
-<ResponseStatus>STATUS</ResponseStatus>
-<ResponseCode>101</ResponseCode>
-<ResponseTextMessage>Card inserted</ResponseTextMessage>
-</TerminalStatusEMV>
-\x03
-"""
-
-approved_message: str = """
-\x02
-<?xml version="1.0"?>
-<TransactionEMV>
-<AccountNumber>***********2345</AccountNumber>
-<HashedEpan>437BF2A684A75C61DFABCD</HashedEpan>
-<ApprovalCode>ABC12345678901234567</ApprovalCode>
-<ExpirationDate>0512</ExpirationDate>
-<CardIssuer>MC</CardIssuer>
-<CardType>CHIP</CardType>
-<MerchantTransactionID>12345</MerchantTransactionID>
-<ZRNumber>2010</ZRNumber>
-<DeviceNumber>601</DeviceNumber>
-<DeviceType>6</DeviceType>
-<TerminalID>Term01</TerminalID>
-<ResponseStatus>AUTHORIZED</ResponseStatus>
-<ResponseCode>000</ResponseCode>
-<ResponseTextMessage>APPROVAL 090882</ResponseTextMessage>
-<TransactionAmount>0.50</TransactionAmount>
-<CurrecyCode>CAD</CurrecyCode>
-<TransactionDate>130828</TransactionDate>
-<TransactionTime>142303</TransactionTime>
-<TransactionIdentifier>12345678901234567890</TransactionIdentifier>
-<BatchID>123456</BatchID>
-<CustomerReceipt>MID: ***33932
-TID: ****4236
-AID: 0000000031010
-MASTERCARD DEBIT
-PAN SEQ NO: 00
-ICC
-SALE
-AMOUNT CAD2.50
-PIN VERIFIED
-AUTH CODE:090882
-18/04/14 00:06
-RETAIN FOR YOUR RECORDS
-THANK YOU
-</CustomerReceipt>
-<MerchantReceipt> MID: ***33932
-TID: ****4236
-AID: 0000000031010
-MASTERCARD DEBIT
-PAN SEQ NO: 00
-ICC
-SALE
-AMOUNT CAD2.50
-PIN VERIFIED
-AUTH CODE: 090882
-18/04/14 00:06
-RETAIN FOR YOUR RECORDS
-THANK YOU
-</MerchantReceipt>
-</TransactionEMV>
-\x03
-"""
 
 config = load_config()
+default_tags = DefaultTags(
+    merchant_transaction_id=2,
+    zr_number=2055,
+    device_number=601,
+    device_type=6,
+    terminal_id='Term01'
+)
+
 
 def sendXML(conn, xml: str):
     padded_xml: str = f"\x02\n{xml}\x03"
@@ -115,7 +32,6 @@ class ConnectionHandler:
             if self.idle_message_event.is_set():
                 break
 
-            default_tags = DefaultTags(2, 2055, 601, 6, 'Term01')
             idle_message_dict = MessageGenerator.get_terminal_status_emv_message(
                 default_tags=default_tags,
                 status_code=TerminalStatusResponseCode.IDLE
@@ -161,14 +77,6 @@ class ConnectionHandler:
                     self.idle_message_thread.start()
                 else:
                     print('WARN: Timeout is "0"')
-
-            # if "TransactionEMV" in parsed_xml:
-            #     time.sleep(2)
-            #     conn.sendall(card_in_message.encode())
-            #     print("INFO: Sent card in message")
-            #     time.sleep(2)
-            #     conn.sendall(approved_message.encode())
-            #     print("INFO: Sent payment approved message")
 
 
 def clean_xml(xml: str) -> str:
