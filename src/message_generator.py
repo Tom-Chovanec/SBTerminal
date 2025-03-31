@@ -145,19 +145,43 @@ class TransactionResponseCode(AlphanumericEnum):
     ISSUER_UNAVAILABLE_AUTHORISED = '0Y3'
     OFFLINE_REFUSED = '0Z1'
     ISSUER_UNAVAILABLE_REFUSED = '0Z3'
-    TRANSACTION_CANCELED_BY_MERCHANT = '200'
-    TRANSACTION_CANCELED_BY_TERMINAL_USER = '201'
-    TRANSACTION_CANCELED_AFTER_EXCEPTION = '202'
-    TRANSACTION_CANCELED_AFTER_REMOVED_CARD = '203'
-    TERMINAL_IS_DEACTIVATED = '296'
-    TERMINAL_IS_BUSY = '297'
-    TERMINAL_NOT_CONFIGURED = '298'
-    TERMINAL_UNAVAILABLE = '299'
-    FAULT_REQUEST = '999'
+    Transaction_canceled_by_Merchant = '200'
+    Transaction_canceled_by_terminal_user = '201'
+    Transaction_canceled_after_exception = '202'
+    Transaction_canceled_after_removed_card = '203'
+    Terminal_is_deactivated = '296'
+    Terminal_is_busy = '297'
+    Terminal_not_configured = '298'
+    Terminal_unavailable = '299'
+    Fault_request = '999'
+
+
+def getTransactionResponseStatusFromCode(
+        transaction_response_code: str
+) -> str:
+    error = {'003', '006', '012', '014', '019', '020', '021', '022', '030',
+             '031', '040', '058', '068', '080', '081', '083', '091', '092',
+             '093', '096', '296', '297', '298', '299', '999'}
+    approved = {'000', '008', '010', '011', '016', '0Y1', '0Y3'}
+    refused = {'001', '002', '004', '005', '007', '013', '015', '018', '023',
+               '028', '033', '034', '038', '041', '043', '051', '054', '055',
+               '056', '057', '062', '063', '065', '075', '076', '077', '078',
+               '082', '085', '094', '0Z1', '0Z3'}
+    canceled = {'017', '200', '201', '202', '203'}
+
+    if transaction_response_code in error:
+        return 'ERROR'
+    elif transaction_response_code in approved:
+        return 'APPROVED'
+    elif transaction_response_code in refused:
+        return 'REFUSED'
+    elif transaction_response_code in canceled:
+        return 'CANCELED'
+    return 'INVALID_RESPONSED_CODE'
 
 
 class MessageGenerator:
-    @staticmethod
+    @ staticmethod
     def get_terminal_status_emv_message(
         default_tags: DefaultTags,
         status_code: TerminalStatusResponseCode
@@ -192,7 +216,7 @@ class MessageGenerator:
             }
         }
 
-    @staticmethod
+    @ staticmethod
     def get_terminal_message_emv_message(
         default_tags: DefaultTags,
         response_code: TerminalMessageResponseCode,
@@ -214,7 +238,7 @@ class MessageGenerator:
             }
         }
 
-    @staticmethod
+    @ staticmethod
     def get_terminal_display_emv_message(
         default_tags: DefaultTags,
         display_message: str,
@@ -239,7 +263,7 @@ class MessageGenerator:
             }
         }
 
-    @staticmethod
+    @ staticmethod
     def get_transaction_emv_response_message(
         default_tags: DefaultTags,
         response_code: TransactionResponseCode,
@@ -248,7 +272,7 @@ class MessageGenerator:
         expiration_date: int,
         card_issuer: CardIssuerCode,
         card_type: CardType,
-        unaltered_track_data: str = None,
+        unaltered_track_data: str = '',
     ) -> dict:
         return {
             'TransactionEMV': {
@@ -261,7 +285,7 @@ class MessageGenerator:
 
                 # card data tags
                 **({'UnalteredTrackData': unaltered_track_data}
-                   if unaltered_track_data is not None else {}),
+                   if unaltered_track_data != '' else {}),
                 'AccountNumber': account_number,
                 # 'HashedEpan': hashed_epan
                 'ExpirationDate': expiration_date,
@@ -269,10 +293,9 @@ class MessageGenerator:
                 'CardType': card_type,
 
                 # result tags
-                # TODO: get the status from the code
-                'ResponseStatus': 'idk',
+                'ResponseStatus':
+                    getTransactionResponseStatusFromCode(response_code.value),
                 'ResponseCode': response_code,
-                # TODO: get proper text message
                 'ResponseTextMessage': response_code._name_.replace("_", " ")
 
                 # transaction tags
