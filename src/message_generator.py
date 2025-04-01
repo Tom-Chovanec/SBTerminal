@@ -20,7 +20,7 @@ class AlphanumericEnum(str, Enum):
         return self.value
 
 
-class TerminalStatusResponseCode(AlphanumericEnum):
+class TerminalStatusResponseCode(Enum):
     IDLE = 100
     CARD_INSERTED = 101
     CARD_REMOVED = 102

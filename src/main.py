@@ -21,6 +21,7 @@ def sendXML(conn, xml: str):
     padded_xml: str = f"\x02\n{xml}\x03"
     conn.sendall(padded_xml.encode())
 
+
 class ConnectionHandler:
     def __init__(self):
         self.idle_message_event = threading.Event()
@@ -63,8 +64,10 @@ class ConnectionHandler:
 
             if config.send_rsp_before_timeout:
                 # this should probably be reworked
-                timeout_value = XMLParser.get_value(parsed_xml, "TimeoutResponse", 0)
-                timeout = int(timeout_value) if timeout_value is not None else 0
+                timeout_value = XMLParser.get_value(
+                    parsed_xml, "TimeoutResponse", 0)
+                timeout = int(
+                    timeout_value) if timeout_value is not None else 0
 
                 self.kill_idle_message_thread()
 
