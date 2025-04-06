@@ -1,13 +1,29 @@
 import os
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import (
+    QPainterPath,
+    QPixmap,
+    QFont,
+    QColor,
+    QPainter,
+    QPolygon,
+    QPen
+)
+from PySide6.QtCore import (
+    QSize,
+    Qt,
+    QPointF,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QMainWindow,
     QPushButton,
     QGridLayout,
-    QWidget
+    QWidget,
+    QHBoxLayout,
+    QVBoxLayout,
+    QSizePolicy,
+    QSpacerItem,
 )
 
 
@@ -19,6 +35,53 @@ def getImagePath(name: str) -> str:
     return imagePath
 
 
+class DiamondButton(QPushButton):
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w, h = self.width(), self.height()
+        pen = QPen(QColor("white"), 4)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        corner_radius = 25.0
+        cx, cy = w / 2, h / 2
+
+        path = QPainterPath()
+
+        # Start at top-right *straight section* before the corner
+        path.moveTo(QPointF(cx + corner_radius, corner_radius))
+
+        # Top-right curve
+        path.quadTo(QPointF(cx, 0), QPointF(cx - corner_radius, corner_radius))
+
+        # Left top to middle-left
+        path.lineTo(QPointF(corner_radius, cy - corner_radius))
+        path.quadTo(QPointF(0, cy), QPointF(corner_radius, cy + corner_radius))
+
+        # Bottom-left to bottom-center
+        path.lineTo(QPointF(cx - corner_radius, h - corner_radius))
+        path.quadTo(QPointF(cx, h), QPointF(
+            cx + corner_radius, h - corner_radius))
+
+        # Bottom-right to middle-right
+        path.lineTo(QPointF(w - corner_radius, cy + corner_radius))
+        path.quadTo(QPointF(w, cy), QPointF(
+            w - corner_radius, cy - corner_radius))
+
+        # Back to top-right straight segment
+        path.lineTo(QPointF(cx + corner_radius, corner_radius))
+
+        painter.drawPath(path)
+
+        # Draw the text
+        painter.setPen(QColor("white"))
+        painter.setFont(QFont("Kulim Park", 25))
+        painter.drawText(
+            self.rect(), Qt.AlignmentFlag.AlignCenter, "Tap\nhere")
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -28,7 +91,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background-color: #181818;")
 
         # Set the initial screen
-        self.showIdleScreen()
+        self.showPaymentScreen()
 
     def createIdleScreen(self):
         """Creates and returns the main idle screen."""
@@ -55,8 +118,11 @@ class MainWindow(QMainWindow):
         big_logo.setPixmap(QPixmap(logo_path).scaledToWidth(375))
         big_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(settings_button, 0, 0,
-                         Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(
+            settings_button,
+            0, 0,
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
         layout.addWidget(big_logo, 0, 0, Qt.AlignmentFlag.AlignCenter)
 
         return widget
@@ -86,9 +152,87 @@ class MainWindow(QMainWindow):
         big_logo.setPixmap(QPixmap(logo_path).scaledToWidth(375))
         big_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(settings_button, 0, 0,
-                         Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(
+            settings_button,
+            0, 0,
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
         layout.addWidget(big_logo, 0, 0, Qt.AlignmentFlag.AlignCenter)
+
+        return widget
+
+    def createPaymentScreen(self):
+        widget = QWidget()
+        layout = QGridLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(0)
+
+        # Top layout with logo
+        topLayout = QHBoxLayout()
+        topLayout.addStretch()
+        text_logo = QLabel()
+        pixmap = QPixmap(getImagePath('text_logo.png'))
+        text_logo.setPixmap(pixmap)
+        text_logo.setFixedHeight(50)
+        topLayout.addWidget(text_logo)
+        layout.addLayout(topLayout, 0, 0)
+
+        # Divider line
+        divider = QLabel()
+        divider.setFixedHeight(3)
+        divider.setStyleSheet("background-color: white;")
+        layout.addWidget(divider)
+
+        # Main content
+        mainContent = QVBoxLayout()
+        mainContent.setSpacing(30)
+
+        title = QLabel("Payment")
+        title.setFont(QFont("Kulim Park", 50))
+        title.setStyleSheet(
+            "color: white; font-weight: semibold; margin-top: 50px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(title)
+
+        dynamic_text_value = "10.50€"
+        dynamic_text = QLabel(dynamic_text_value)
+        dynamic_text.setFont(QFont("Kulim Park", 30))
+        dynamic_text.setStyleSheet(
+            "color: white; font-weight: semibold; margin-left: 10px;")
+        dynamic_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(dynamic_text)
+
+        mainContent.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+
+        # Diamond-shaped button
+        diamond_button = DiamondButton()
+        diamond_button.setFixedSize(200, 200)
+        diamond_button.setStyleSheet(
+            "background-color: transparent; border: none;")
+        mainContent.addWidget(
+            diamond_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        mainContent.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+        layout.addLayout(mainContent, 2, 0)
+
+        # Bottom manual entry button
+        manual_button = QPushButton("Enter details manually")
+        manual_button.setFont(QFont("Kulim Park", 25))
+        manual_button.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: black;
+                border-radius: 20px;
+                padding: 15px;
+                margin: 20px;
+            }
+            QPushButton:hover {
+                background-color: #dddddd;
+            }
+        """)
+        layout.addWidget(manual_button)
 
         return widget
 
@@ -97,8 +241,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.createSettingsScreen())
 
     def showIdleScreen(self):
-        """Switches back to the main idle screen."""
+        """Switches to the main idle screen."""
         self.setCentralWidget(self.createIdleScreen())
+
+    def showPaymentScreen(self):
+        """Switches to the payment screen."""
+        self.setCentralWidget(self.createPaymentScreen())
 
 
 app = QApplication([])
@@ -107,4 +255,3 @@ window = MainWindow()
 window.show()
 
 app.exec()
-
