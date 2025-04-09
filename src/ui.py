@@ -5,7 +5,6 @@ from PySide6.QtGui import (
     QFont,
     QColor,
     QPainter,
-    QPolygon,
     QPen
 )
 from PySide6.QtCore import (
@@ -19,12 +18,16 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QGridLayout,
+    QComboBox,
+    QLineEdit,
     QWidget,
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
     QSpacerItem,
 )
+
+os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
 
 
 def getImagePath(name: str) -> str:
@@ -36,7 +39,7 @@ def getImagePath(name: str) -> str:
 
 
 class DiamondButton(QPushButton):
-    def paintEvent(self, event):
+    def paintEvent(self, _):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -91,7 +94,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background-color: #181818;")
 
         # Set the initial screen
-        self.showPaymentScreen()
+        self.showManualCardDetailsScreen()
 
     def createIdleScreen(self):
         """Creates and returns the main idle screen."""
@@ -182,7 +185,6 @@ class MainWindow(QMainWindow):
         divider.setFixedHeight(3)
         divider.setStyleSheet("background-color: white;")
         layout.addWidget(divider)
-
         # Main content
         mainContent = QVBoxLayout()
         mainContent.setSpacing(30)
@@ -194,13 +196,13 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         mainContent.addWidget(title)
 
-        dynamic_text_value = "10.50€"
-        dynamic_text = QLabel(dynamic_text_value)
-        dynamic_text.setFont(QFont("Kulim Park", 30))
-        dynamic_text.setStyleSheet(
+        price_text_value = "10.50€"
+        price_text = QLabel(price_text_value)
+        price_text.setFont(QFont("Kulim Park", 30))
+        price_text.setStyleSheet(
             "color: white; font-weight: semibold; margin-left: 10px;")
-        dynamic_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        mainContent.addWidget(dynamic_text)
+        price_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(price_text)
 
         mainContent.addSpacerItem(QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
@@ -236,6 +238,135 @@ class MainWindow(QMainWindow):
 
         return widget
 
+    def createManualCardDetailsScreen(self):
+        widget = QWidget()
+        layout = QGridLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(0)
+
+        # Top layout with logo
+        topLayout = QHBoxLayout()
+        topLayout.addStretch()
+        text_logo = QLabel()
+        pixmap = QPixmap(getImagePath('text_logo.png'))
+        text_logo.setPixmap(pixmap)
+        text_logo.setFixedHeight(50)
+        topLayout.addWidget(text_logo)
+        layout.addLayout(topLayout, 0, 0)
+
+        # Divider line
+        divider = QLabel()
+        divider.setFixedHeight(3)
+        divider.setStyleSheet("background-color: white;")
+        layout.addWidget(divider)
+
+        # Main content
+        mainContent = QVBoxLayout()
+        mainContent.setSpacing(20)
+
+        title = QLabel("Payment")
+        title.setFont(QFont("Kulim Park", 30))
+        title.setStyleSheet(
+            "color: white; font-weight: semibold; margin-top: 25px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(title)
+
+        price_text = QLabel("10.50€")
+        price_text.setFont(QFont("Kulim Park", 25))
+        price_text.setStyleSheet(
+            "color: white; font-weight: semibold; margin-left: 2px;")
+        price_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(price_text)
+
+        # Card selection dropdown
+        card_label = QLabel("Please select your card")
+        card_label.setStyleSheet("color: white; font-size: 16px;")
+        mainContent.addWidget(card_label)
+
+        card_dropdown = QComboBox()
+
+        card_dropdown.addItems(
+            ["XX", "VS", "MC", "CA", "DC", "DN", "IN", "AX", "JC", "MA", "CU", "DS"])
+        card_dropdown.setStyleSheet("background-color: white; color: #181818;")
+        mainContent.addWidget(card_dropdown)
+
+        # Card number input
+        card_number_input = QLineEdit()
+        card_number_input.setPlaceholderText("Card Number")
+        card_number_input.setStyleSheet(
+            "background-color: white; padding: 5px; color: #181818;")
+        mainContent.addWidget(card_number_input)
+
+        # Expiration date and security code
+        exp_layout = QHBoxLayout()
+
+        exp_month = QLineEdit()
+        exp_month.setPlaceholderText("MM")
+        exp_month.setMaxLength(2)
+        exp_month.setFixedWidth(50)
+        exp_month.setStyleSheet(
+            "background-color: white; padding: 5px; color: #181818;")
+        exp_layout.addWidget(exp_month)
+
+        exp_year = QLineEdit()
+        exp_year.setPlaceholderText("YY")
+        exp_year.setMaxLength(2)
+        exp_year.setFixedWidth(50)
+        exp_year.setStyleSheet(
+            "background-color: white; padding: 5px; color: #181818;")
+        exp_layout.addWidget(exp_year)
+
+        cvv_input = QLineEdit()
+        cvv_input.setPlaceholderText("CVV")
+        cvv_input.setMaxLength(4)
+        cvv_input.setFixedWidth(60)
+        cvv_input.setStyleSheet(
+            "background-color: white; padding: 5px; color: #181818;")
+
+        exp_cvv_layout = QHBoxLayout()
+
+        exp_cvv_layout.addLayout(exp_layout)
+        exp_cvv_layout.addWidget(cvv_input)
+
+        mainContent.addLayout(exp_cvv_layout)
+
+        card_number_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        exp_month.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        exp_year.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        cvv_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+
+        card_number_input.setMaxLength(19)  # 16 digits + 3 spaces
+        exp_month.setMaxLength(2)           # MM
+        exp_year.setMaxLength(2)            # YY
+        cvv_input.setMaxLength(3)           # 3 or 4 digits depending on card
+
+        # Spacer before Pay button
+        mainContent.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+
+        # Pay button
+        pay_button = QPushButton("Pay")
+        pay_button.setStyleSheet("""
+            QPushButton {
+                background-color: #ffffff;
+                color: #181818;
+                font-size: 18px;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #dddddd;
+            }
+        """)
+        mainContent.addWidget(
+            pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        mainContent.addSpacerItem(QSpacerItem(
+            20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
+
+        layout.addLayout(mainContent, 2, 0)
+
+        return widget
+
     def showSettingsScreen(self):
         """Switches to the settings screen."""
         self.setCentralWidget(self.createSettingsScreen())
@@ -247,6 +378,10 @@ class MainWindow(QMainWindow):
     def showPaymentScreen(self):
         """Switches to the payment screen."""
         self.setCentralWidget(self.createPaymentScreen())
+
+    def showManualCardDetailsScreen(self):
+        """Switches to the manual card details screen."""
+        self.setCentralWidget(self.createManualCardDetailsScreen())
 
 
 app = QApplication([])
