@@ -5,7 +5,12 @@ import threading
 from xml_parser import XMLParser
 from terminal_config import load_config
 from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType
+from ui import MainWindow
 
+from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtWidgets import QApplication
+
+price: str = ''
 
 config = load_config()
 default_tags = DefaultTags(
@@ -22,8 +27,11 @@ def sendXML(conn, xml: str):
     conn.sendall(padded_xml.encode())
 
 
-class ConnectionHandler:
+class ConnectionHandler(QObject):
+    price_updated = Signal(str)  # Define the signal to pass updated price
+
     def __init__(self):
+        super().__init__()  # Call parent constructor to ensure signal initialization
         self.idle_message_event = threading.Event()
         self.idle_message_thread = None
 
@@ -50,10 +58,10 @@ class ConnectionHandler:
             self.idle_message_thread.join()  # Wait for it to exit
 
     def handle_connection(self, conn: socket.socket):
+        global price
         while True:
             data = conn.recv(4096)
             if not data:
-                print("INFO: Client disconnected")
                 self.kill_idle_message_thread()
                 break
 
@@ -63,7 +71,6 @@ class ConnectionHandler:
             parsed_xml = XMLParser.parse(xml_cleaned)
 
             if config.send_rsp_before_timeout:
-                # this should probably be reworked
                 timeout_value = XMLParser.get_value(
                     parsed_xml, "TimeoutResponse", 0)
                 timeout = int(
@@ -71,7 +78,6 @@ class ConnectionHandler:
 
                 self.kill_idle_message_thread()
 
-                # Start a new idle message thread
                 if timeout != 0:
                     print(f'INFO: Setting timeout interval to "{timeout}"')
                     self.idle_message_event.clear()
@@ -81,24 +87,67 @@ class ConnectionHandler:
                 else:
                     print('WARN: Timeout is "0"')
 
+            price = XMLParser.get_value(
+                parsed_xml, 'TransactionAmount', '0.00')
+            price += ' '
+            price += XMLParser.get_value(
+                parsed_xml, 'CurrencyCode', '')
+
+            # Emit the price updated signal
+            self.price_updated.emit(price)
+
 
 def clean_xml(xml: str) -> str:
     return xml.strip("\x02\x03")
 
 
+class ServerThread(QThread):
+    def __init__(self, ip, port, window, parent=None):
+        super().__init__(parent)
+        self.ip = ip
+        self.port = port
+        self.connection_handler = ConnectionHandler()
+        self.running = True
+        self.window = window  # Store the window reference
+
+        # Connect the price_updated signal to a method that updates the UI
+        self.connection_handler.price_updated.connect(self.update_price)
+
+    def run(self):
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.bind((self.ip, self.port))
+        server.listen(1)
+        print(f"INFO: Listening on: {self.ip}:{self.port}")
+
+        while self.running:
+            conn, _ = server.accept()
+            print("INFO: Client connected")
+            self.connection_handler.handle_connection(conn)
+            print("INFO: Client disconnected")
+            self.window.showIdleScreen()
+
+    def stop(self):
+        self.running = False
+        self.quit()
+        self.wait()
+
+    def update_price(self, price: str):
+        # Now that we have access to the window, we can update it
+        self.window.showPaymentScreen(price)
+
+
 def main() -> None:
-    print(f"INFO: Listening on: {config.ip_address}:{config.port}")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((config.ip_address, config.port))
+    app = QApplication([])
 
-    server.listen(1)
+    window = MainWindow()  # Your main window
+    window.show()
 
-    connection_handler = ConnectionHandler()
+    # Pass the window to ServerThread
+    server_thread = ServerThread(config.ip_address, config.port, window)
+    server_thread.start()
 
-    while True:
-        conn, _ = server.accept()
-        print("INFO: Client connected ")
-        connection_handler.handle_connection(conn)
+    app.exec()
+    server_thread.stop()
 
 
 if __name__ == "__main__":

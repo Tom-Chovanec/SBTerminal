@@ -13,7 +13,6 @@ from PySide6.QtCore import (
     QPointF,
 )
 from PySide6.QtWidgets import (
-    QApplication,
     QLabel,
     QMainWindow,
     QPushButton,
@@ -94,7 +93,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background-color: #181818;")
 
         # Set the initial screen
-        self.showManualCardDetailsScreen()
+        self.showIdleScreen()
 
     def createIdleScreen(self):
         """Creates and returns the main idle screen."""
@@ -164,7 +163,7 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def createPaymentScreen(self):
+    def createPaymentScreen(self, price_text_value: str):
         widget = QWidget()
         layout = QGridLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -196,7 +195,6 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         mainContent.addWidget(title)
 
-        price_text_value = "10.50€"
         price_text = QLabel(price_text_value)
         price_text.setFont(QFont("Kulim Park", 30))
         price_text.setStyleSheet(
@@ -286,7 +284,8 @@ class MainWindow(QMainWindow):
         card_dropdown = QComboBox()
 
         card_dropdown.addItems(
-            ["XX", "VS", "MC", "CA", "DC", "DN", "IN", "AX", "JC", "MA", "CU", "DS"])
+            ["XX", "VS", "MC", "CA", "DC", "DN",
+             "IN", "AX", "JC", "MA", "CU", "DS"])
         card_dropdown.setStyleSheet("background-color: white; color: #181818;")
         mainContent.addWidget(card_dropdown)
 
@@ -375,18 +374,10 @@ class MainWindow(QMainWindow):
         """Switches to the main idle screen."""
         self.setCentralWidget(self.createIdleScreen())
 
-    def showPaymentScreen(self):
+    def showPaymentScreen(self, price: str):
         """Switches to the payment screen."""
-        self.setCentralWidget(self.createPaymentScreen())
+        self.setCentralWidget(self.createPaymentScreen(price))
 
     def showManualCardDetailsScreen(self):
         """Switches to the manual card details screen."""
         self.setCentralWidget(self.createManualCardDetailsScreen())
-
-
-app = QApplication([])
-
-window = MainWindow()
-window.show()
-
-app.exec()
