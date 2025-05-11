@@ -28,12 +28,15 @@ def sendXML(conn, xml: str):
 
 
 class ConnectionHandler(QObject):
-    price_updated = Signal(str)  # Define the signal to pass updated price
+    price_updated = Signal(str)
+    client_connected = Signal()
+    client_disconnected = Signal()
 
     def __init__(self):
-        super().__init__()  # Call parent constructor to ensure signal initialization
+        super().__init__()
         self.idle_message_event = threading.Event()
         self.idle_message_thread = None
+        self.running = True
 
     def send_idle_message(self, conn: socket.socket, timeout: int):
         self.idle_message_event.clear()
@@ -59,10 +62,11 @@ class ConnectionHandler(QObject):
 
     def handle_connection(self, conn: socket.socket):
         global price
-        while True:
+        while self.running:
             data = conn.recv(4096)
             if not data:
                 self.kill_idle_message_thread()
+                self.client_disconnected.emit()
                 break
 
             print("INFO: Received data")
@@ -93,7 +97,6 @@ class ConnectionHandler(QObject):
             price += XMLParser.get_value(
                 parsed_xml, 'CurrencyCode', '')
 
-            # Emit the price updated signal
             self.price_updated.emit(price)
 
 
@@ -102,48 +105,45 @@ def clean_xml(xml: str) -> str:
 
 
 class ServerThread(QThread):
-    def __init__(self, ip, port, window, parent=None):
+    def __init__(self, ip, port, parent=None):
         super().__init__(parent)
         self.ip = ip
         self.port = port
         self.connection_handler = ConnectionHandler()
-        self.running = True
-        self.window = window  # Store the window reference
-
-        # Connect the price_updated signal to a method that updates the UI
-        self.connection_handler.price_updated.connect(self.update_price)
+        self.connection_handler.moveToThread(self)
+        self.server_socket = None
+        self.conn = None
 
     def run(self):
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind((self.ip, self.port))
-        server.listen(1)
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((self.ip, self.port))
+        self.server_socket.listen(1)
         print(f"INFO: Listening on: {self.ip}:{self.port}")
 
-        while self.running:
-            conn, _ = server.accept()
+        while True:
+            conn, _ = self.server_socket.accept()
+            self.conn = conn
             print("INFO: Client connected")
-            self.connection_handler.handle_connection(conn)
-            print("INFO: Client disconnected")
-            self.window.showIdleScreen()
+            self.connection_handler.handle_connection(self.conn)
 
     def stop(self):
         self.running = False
         self.quit()
         self.wait()
 
-    def update_price(self, price: str):
-        # Now that we have access to the window, we can update it
-        self.window.showPaymentScreen(price)
-
 
 def main() -> None:
     app = QApplication([])
 
-    window = MainWindow()  # Your main window
+    window = MainWindow()
     window.show()
 
-    # Pass the window to ServerThread
     server_thread = ServerThread(config.ip_address, config.port, window)
+    server_thread.connection_handler.price_updated.connect(
+        window.showPaymentScreen)
+    server_thread.connection_handler.client_disconnected.connect(
+        window.showIdleScreen)
+
     server_thread.start()
 
     app.exec()
