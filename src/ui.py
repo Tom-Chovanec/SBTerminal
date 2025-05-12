@@ -11,6 +11,7 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QPointF,
+    Signal,
 )
 from PySide6.QtWidgets import (
     QLabel,
@@ -85,6 +86,8 @@ class DiamondButton(QPushButton):
 
 
 class MainWindow(QMainWindow):
+    pay_button_clicked = Signal(dict)
+
     def __init__(self):
         super().__init__()
 
@@ -232,6 +235,7 @@ class MainWindow(QMainWindow):
                 background-color: #dddddd;
             }
         """)
+        manual_button.clicked.connect(self.showManualCardDetailsScreen)
         layout.addWidget(manual_button)
 
         return widget
@@ -281,63 +285,65 @@ class MainWindow(QMainWindow):
         card_label.setStyleSheet("color: white; font-size: 16px;")
         mainContent.addWidget(card_label)
 
-        card_dropdown = QComboBox()
-
-        card_dropdown.addItems(
+        self.card_dropdown = QComboBox()
+        self.card_dropdown.addItems(
             ["XX", "VS", "MC", "CA", "DC", "DN",
              "IN", "AX", "JC", "MA", "CU", "DS"])
-        card_dropdown.setStyleSheet("background-color: white; color: #181818;")
-        mainContent.addWidget(card_dropdown)
+        self.card_dropdown.setStyleSheet(
+            "background-color: white; color: #181818;")
+        mainContent.addWidget(self.card_dropdown)
 
         # Card number input
-        card_number_input = QLineEdit()
-        card_number_input.setPlaceholderText("Card Number")
-        card_number_input.setStyleSheet(
+        self.card_number_input = QLineEdit()
+        self.card_number_input.setPlaceholderText("Card Number")
+        self.card_number_input.setStyleSheet(
             "background-color: white; padding: 5px; color: #181818;")
-        mainContent.addWidget(card_number_input)
+        mainContent.addWidget(self.card_number_input)
 
         # Expiration date and security code
         exp_layout = QHBoxLayout()
 
-        exp_month = QLineEdit()
-        exp_month.setPlaceholderText("MM")
-        exp_month.setMaxLength(2)
-        exp_month.setFixedWidth(50)
-        exp_month.setStyleSheet(
+        self.exp_month = QLineEdit()
+        self.exp_month.setPlaceholderText("MM")
+        self.exp_month.setMaxLength(2)
+        self.exp_month.setFixedWidth(50)
+        self.exp_month.setStyleSheet(
             "background-color: white; padding: 5px; color: #181818;")
-        exp_layout.addWidget(exp_month)
+        exp_layout.addWidget(self.exp_month)
 
-        exp_year = QLineEdit()
-        exp_year.setPlaceholderText("YY")
-        exp_year.setMaxLength(2)
-        exp_year.setFixedWidth(50)
-        exp_year.setStyleSheet(
+        self.exp_year = QLineEdit()
+        self.exp_year.setPlaceholderText("YY")
+        self.exp_year.setMaxLength(2)
+        self.exp_year.setFixedWidth(50)
+        self.exp_year.setStyleSheet(
             "background-color: white; padding: 5px; color: #181818;")
-        exp_layout.addWidget(exp_year)
+        exp_layout.addWidget(self.exp_year)
 
-        cvv_input = QLineEdit()
-        cvv_input.setPlaceholderText("CVV")
-        cvv_input.setMaxLength(4)
-        cvv_input.setFixedWidth(60)
-        cvv_input.setStyleSheet(
+        # CVV
+        self.cvv_input = QLineEdit()
+        self.cvv_input.setPlaceholderText("CVV")
+        self.cvv_input.setMaxLength(4)
+        self.cvv_input.setFixedWidth(60)
+        self.cvv_input.setStyleSheet(
             "background-color: white; padding: 5px; color: #181818;")
 
         exp_cvv_layout = QHBoxLayout()
 
         exp_cvv_layout.addLayout(exp_layout)
-        exp_cvv_layout.addWidget(cvv_input)
+        exp_cvv_layout.addWidget(self.cvv_input)
 
         mainContent.addLayout(exp_cvv_layout)
 
-        card_number_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-        exp_month.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-        exp_year.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-        cvv_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        self.card_number_input.setInputMethodHints(
+            Qt.InputMethodHint.ImhDigitsOnly)
+        self.exp_month.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        self.exp_year.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+        self.cvv_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
 
-        card_number_input.setMaxLength(19)  # 16 digits + 3 spaces
-        exp_month.setMaxLength(2)           # MM
-        exp_year.setMaxLength(2)            # YY
-        cvv_input.setMaxLength(3)           # 3 or 4 digits depending on card
+        self.card_number_input.setMaxLength(19)  # 16 digits + 3 spaces
+        self.exp_month.setMaxLength(2)           # MM
+        self.exp_year.setMaxLength(2)            # YY
+        self.cvv_input.setMaxLength(3)
 
         # Spacer before Pay button
         mainContent.addSpacerItem(QSpacerItem(
@@ -357,6 +363,7 @@ class MainWindow(QMainWindow):
                 background-color: #dddddd;
             }
         """)
+        pay_button.clicked.connect(self.handlePayButtonClicked)
         mainContent.addWidget(
             pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
         mainContent.addSpacerItem(QSpacerItem(
@@ -365,6 +372,16 @@ class MainWindow(QMainWindow):
         layout.addLayout(mainContent, 2, 0)
 
         return widget
+
+    def handlePayButtonClicked(self):
+        card_details = {
+            "card_number": self.card_number_input.text(),
+            "expiration_date": self.exp_month.text() + self.exp_year.text(),
+            "cvv": self.cvv_input.text(),
+            "card_issuer": self.card_dropdown.currentText()
+        }
+        print("handle pay button clicked")
+        self.pay_button_clicked.emit(card_details)
 
     def showSettingsScreen(self):
         """Switches to the settings screen."""
