@@ -20,7 +20,7 @@ class AlphanumericEnum(str, Enum):
         return self.value
 
 
-class TerminalStatusResponseCode(AlphanumericEnum):
+class TerminalStatusResponseCode(Enum):
     IDLE = 100
     CARD_INSERTED = 101
     CARD_REMOVED = 102
@@ -82,9 +82,9 @@ class CardIssuerCode(AlphanumericEnum):
 
 
 class CardType(Enum):
-    MAGN = 'magnetic stripe'
-    CHIP = 'chipped card'
-    CLESS = 'contactless card'
+    MAGN = 'MAGN'  # magnetic stripe
+    CHIP = 'CHIP'  # chipped card
+    CLESS = 'CLESS'  # contactless card
 
 
 class TransactionResponseCode(AlphanumericEnum):
@@ -165,7 +165,7 @@ def getTransactionResponseStatusFromCode(
     error = {'003', '006', '012', '014', '019', '020', '021', '022', '030',
              '031', '040', '058', '068', '080', '081', '083', '091', '092',
              '093', '096', '296', '297', '298', '299', '999'}
-    approved = {'000', '008', '010', '011', '016', '0Y1', '0Y3'}
+    authorized = {'000', '008', '010', '011', '016', '0Y1', '0Y3'}
     refused = {'001', '002', '004', '005', '007', '013', '015', '018', '023',
                '028', '033', '034', '038', '041', '043', '051', '054', '055',
                '056', '057', '062', '063', '065', '075', '076', '077', '078',
@@ -174,8 +174,8 @@ def getTransactionResponseStatusFromCode(
 
     if transaction_response_code in error:
         return 'ERROR'
-    elif transaction_response_code in approved:
-        return 'APPROVED'
+    elif transaction_response_code in authorized:
+        return 'AUTHORIZED'
     elif transaction_response_code in refused:
         return 'REFUSED'
     elif transaction_response_code in canceled:
@@ -280,11 +280,11 @@ class MessageGenerator:
         expiration_date: str,
         card_issuer: CardIssuerCode,
         card_type: CardType,
-        unaltered_track_data: str = '',
+        # unaltered_track_data: str = '',
         original_transaction_amount: float = 0.0,
+        currency_code: str = '',
         surcharge_amount: float = 0.0,
-        discount_amount: float = 0.0,
-        currency_code: str = ''
+        discount_amount: float = 0.0
     ) -> dict:
         utc_offset = timedelta(hours=1)
         now = datetime.now(timezone.utc) + utc_offset
@@ -301,13 +301,13 @@ class MessageGenerator:
                 'TerminalID': default_tags.terminal_id,
 
                 # card data tags
-                **({'UnalteredTrackData': unaltered_track_data}
-                   if unaltered_track_data != '' else {}),
+                # **({'UnalteredTrackData': unaltered_track_data}
+                #    if unaltered_track_data != '' else {}),
                 'AccountNumber': account_number,
                 # 'HashedEpan': hashed_epan
                 'ExpirationDate': expiration_date,
                 'CardIssuer': card_issuer,
-                'CardType': card_type,
+                'CardType': card_type.name,
 
                 # result tags
                 'ResponseStatus':
@@ -317,14 +317,14 @@ class MessageGenerator:
 
                 # transaction tags
                 **({'OriginalTransactionAmount': original_transaction_amount}
-                   if surcharge_amount != 0.0
-                   or discount_amount != 0.0 else {}),
+                        if surcharge_amount != 0.0
+                        or discount_amount != 0.0 else {}),
                 'TransactionAmount': original_transaction_amount
                     + surcharge_amount - discount_amount,
                 **({'SurchargeAmount': surcharge_amount}
-                   if surcharge_amount != 0.0 else {}),
+                        if surcharge_amount != 0.0 else {}),
                 **({'DiscountAmount': discount_amount}
-                   if discount_amount != 0.0 else {}),
+                        if discount_amount != 0.0 else {}),
                 # 'CardAmount': '0.00'
                 'ApprovalCode': generate_random_an_string(20),
                 'TransactionDate': date_str,
