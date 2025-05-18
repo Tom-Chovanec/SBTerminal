@@ -12,7 +12,7 @@ class Config:
     card_type: str
     card_number: str
     expiration_date: str
-    hashed_card_number: str
+    cvv: str
 
 
 def dict_to_config(data: dict) -> Config:
@@ -24,7 +24,7 @@ def dict_to_config(data: dict) -> Config:
         card_type=data.get("card_type", ""),
         card_number=data.get("card_number", ""),
         expiration_date=data.get("expiration_date", ""),
-        hashed_card_number=data.get("hashed_card_number", "")
+        cvv=data.get("cvc", ""),
     )
 
 
@@ -37,7 +37,7 @@ def config_to_dict(config: Config) -> dict:
         'card_number': config.card_number,
         'card_type': config.card_type,
         'expiration_date': config.expiration_date,
-        'hashed_card_number': config.hashed_card_number
+        'cvc': config.cvv,
     }
 
 
@@ -49,7 +49,7 @@ default_config_dict: dict = {
     'card_type': 'CHIP',
     'card_number': '**********1234',
     'expiration_date': '2512',
-    'hashed_card_number': '437B12A684A75C61235260',
+    'cvc': '353'
 }
 
 
@@ -98,3 +98,6 @@ def load_config() -> Config:
         save_config(dict_to_config(yaml_config))
 
     return dict_to_config(yaml_config)
+
+
+config = load_config()

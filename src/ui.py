@@ -5,7 +5,8 @@ from PySide6.QtGui import (
     QFont,
     QColor,
     QPainter,
-    QPen
+    QPen,
+    QIntValidator,
 )
 from PySide6.QtCore import (
     QSize,
@@ -16,16 +17,23 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
+    QCheckBox,
     QPushButton,
     QGridLayout,
     QComboBox,
+    QGroupBox,
     QLineEdit,
+    QFormLayout,
     QWidget,
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
     QSpacerItem,
 )
+
+from terminal_config import config, save_config
+from server import ServerThread
+
 
 os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
 
@@ -95,6 +103,7 @@ class MainWindow(QMainWindow):
         self.setFixedSize(QSize(480, 800))
         self.setStyleSheet("background-color: #181818;")
 
+        self.server_thread: ServerThread = None
         # Set the initial screen
         self.showIdleScreen()
 
@@ -133,36 +142,74 @@ class MainWindow(QMainWindow):
         return widget
 
     def createSettingsScreen(self):
-        """Creates and returns the main idle screen."""
+        """Creates and returns the settings screen with config-bound fields."""
         widget = QWidget()
-        layout = QGridLayout(widget)
+        layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(0)
+        layout.setSpacing(15)
 
-        logo_path = getImagePath('sb_logo.png')
+        # Back Button
+        back_button_layout = QHBoxLayout()
         settings_image_path = getImagePath('back_arrow.png')
-
-        # settings button
-        settings_button = QPushButton()
+        back_button = QPushButton()
         settings_icon = QPixmap(settings_image_path)
-        settings_button.clicked.connect(self.showIdleScreen)
+        back_button.setIcon(settings_icon)
+        back_button.setIconSize(QSize(64, 64))
+        back_button.setFixedSize(64, 64)
+        back_button.setStyleSheet("border: none; background: none;")
+        back_button.clicked.connect(self.saveSettings)
+        back_button.clicked.connect(self.showIdleScreen)
+        back_button_layout.addWidget(
+            back_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        layout.addLayout(back_button_layout)
 
-        settings_button.setIcon(settings_icon)
-        settings_button.setIconSize(QSize(64, 64))
-        settings_button.setFixedSize(64, 64)
-        settings_button.setStyleSheet("border: none; background: none;")
+        # Card Details
+        card_group = QGroupBox("Card Details")
+        card_layout = QVBoxLayout()
 
-        # logo label
-        big_logo = QLabel()
-        big_logo.setPixmap(QPixmap(logo_path).scaledToWidth(375))
-        big_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.card_number_input_settings = QLineEdit(config.card_number)
+        self.card_number_input_settings.setPlaceholderText("Card Number")
+        card_layout.addWidget(self.card_number_input_settings)
 
-        layout.addWidget(
-            settings_button,
-            0, 0,
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
-        )
-        layout.addWidget(big_logo, 0, 0, Qt.AlignmentFlag.AlignCenter)
+        exp_layout = QHBoxLayout()
+        self.exp_month_settings = QLineEdit(
+            config.expiration_date[:2])
+        self.exp_month_settings.setPlaceholderText("MM")
+        self.exp_month_settings.setFixedWidth(50)
+        exp_layout.addWidget(self.exp_month_settings)
+
+        self.exp_year_settings = QLineEdit(
+            config.expiration_date[2:])
+        self.exp_year_settings.setPlaceholderText("YY")
+        self.exp_year_settings.setFixedWidth(50)
+        exp_layout.addWidget(self.exp_year_settings)
+
+        self.cvv_input_settings = QLineEdit(config.cvv)
+        self.cvv_input_settings.setPlaceholderText("CVV")
+        self.cvv_input_settings.setFixedWidth(60)
+        exp_layout.addWidget(self.cvv_input_settings)
+
+        card_layout.addLayout(exp_layout)
+        card_group.setLayout(card_layout)
+        layout.addWidget(card_group)
+
+        # IP & Port
+        network_group = QGroupBox("Network Settings")
+        network_layout = QFormLayout()
+        self.ip_input = QLineEdit(config.ip_address)
+        self.port_input = QLineEdit(str(config.port))
+        self.port_input.setValidator(QIntValidator(1, 65535))
+        network_layout.addRow("IP Address:", self.ip_input)
+        network_layout.addRow("Port:", self.port_input)
+        network_group.setLayout(network_layout)
+        layout.addWidget(network_group)
+
+        # Toggle
+        self.send_response_toggle = QCheckBox("Send Response")
+        self.send_response_toggle.setChecked(config.send_rsp_before_timeout)
+        layout.addWidget(self.send_response_toggle)
+
+        layout.addStretch()
 
         return widget
 
@@ -213,6 +260,7 @@ class MainWindow(QMainWindow):
         diamond_button.setFixedSize(200, 200)
         diamond_button.setStyleSheet(
             "background-color: transparent; border: none;")
+        diamond_button.clicked.connect(self.handlePayButtonClicked)
         mainContent.addWidget(
             diamond_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -363,7 +411,7 @@ class MainWindow(QMainWindow):
                 background-color: #dddddd;
             }
         """)
-        pay_button.clicked.connect(self.handlePayButtonClicked)
+        pay_button.clicked.connect(self.handleManualPayButtonClicked)
         mainContent.addWidget(
             pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
         mainContent.addSpacerItem(QSpacerItem(
@@ -374,21 +422,79 @@ class MainWindow(QMainWindow):
         return widget
 
     def handlePayButtonClicked(self):
+        global config
+        card_details = {
+            "card_number": config.card_number,
+            "expiration_date": config.expiration_date,
+            "cvv": config.cvv,
+            "card_issuer": config.card_issuer
+        }
+        self.pay_button_clicked.emit(card_details)
+
+    def handleManualPayButtonClicked(self):
         card_details = {
             "card_number": self.card_number_input.text(),
             "expiration_date": self.exp_month.text() + self.exp_year.text(),
             "cvv": self.cvv_input.text(),
             "card_issuer": self.card_dropdown.currentText()
         }
-        print("handle pay button clicked")
         self.pay_button_clicked.emit(card_details)
+
+    def saveSettings(self):
+        global config
+
+        ip = self.ip_input.text()
+        port = int(self.port_input.text()
+                   ) if self.port_input.text().isdigit() else 0
+        send_response = self.send_response_toggle.isChecked()
+        card_number = self.card_number_input_settings.text()
+        month = self.exp_month_settings.text()
+        year = self.exp_year_settings.text()
+        expiration = f"{month}{year}"
+
+        config.ip_address = ip
+        config.port = port
+        config.send_rsp_before_timeout = send_response
+        config.card_number = card_number
+        config.expiration_date = expiration
+
+        save_config(config)
+
+        print("INFO: Settings saved")
 
     def showSettingsScreen(self):
         """Switches to the settings screen."""
+        if self.server_thread and self.server_thread.isRunning():
+            self.server_thread.stop()
+            # Disconnect signals to avoid issues
+            try:
+                self.server_thread.connection_handler.price_updated.disconnect(
+                    self.showPaymentScreen)
+                self.server_thread.connection_handler.client_disconnected.disconnect(
+                    self.showIdleScreen)
+                self.pay_button_clicked.disconnect(
+                    self.server_thread.connection_handler.send_payment)
+            except TypeError:
+                # Disconnect might raise TypeError if not connected
+                pass
+            self.server_thread = None  # Set to None after stopping and disconnecting
+
         self.setCentralWidget(self.createSettingsScreen())
 
     def showIdleScreen(self):
         """Switches to the main idle screen."""
+        global config
+
+        if not self.server_thread:
+            self.server_thread = ServerThread(
+                config.ip_address, config.port, self)
+            self.server_thread.connection_handler.price_updated.connect(
+                self.showPaymentScreen)
+            self.server_thread.connection_handler.client_disconnected.connect(
+                self.showIdleScreen)
+            self.pay_button_clicked.connect(
+                self.server_thread.connection_handler.send_payment)
+            self.server_thread.start()
         self.setCentralWidget(self.createIdleScreen())
 
     def showPaymentScreen(self, price: str):
@@ -398,3 +504,19 @@ class MainWindow(QMainWindow):
     def showManualCardDetailsScreen(self):
         """Switches to the manual card details screen."""
         self.setCentralWidget(self.createManualCardDetailsScreen())
+
+    def closeEvent(self, event):
+        """Ensures the server thread is stopped when the window is closed."""
+        if self.server_thread and self.server_thread.isRunning():
+            self.server_thread.stop()
+            # Disconnect signals
+            try:
+                self.server_thread.connection_handler.price_updated.disconnect(
+                    self.showPaymentScreen)
+                self.server_thread.connection_handler.client_disconnected.disconnect(
+                    self.showIdleScreen)
+                self.pay_button_clicked.disconnect(
+                    self.server_thread.connection_handler.send_payment)
+            except TypeError:
+                pass
+        event.accept()
