@@ -38,8 +38,6 @@ from server import ServerThread
 
 os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
 
-card_details: dict
-
 
 def getImagePath(name: str) -> str:
     imagePath = f'assets/images/{name}'
@@ -272,8 +270,6 @@ class MainWindow(QMainWindow):
         diamond_button.setStyleSheet(
             "background-color: transparent; border: none;")
         diamond_button.clicked.connect(self.showMessagesScreen)
-        diamond_button.clicked.connect(self.handlePayButtonClicked)
-
         mainContent.addWidget(
             diamond_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -425,8 +421,6 @@ class MainWindow(QMainWindow):
             }
         """)
         pay_button.clicked.connect(self.showMessagesScreen)
-        pay_button.clicked.connect(self.handleManualPayButtonClicked)
-
         mainContent.addWidget(
             pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
         mainContent.addSpacerItem(QSpacerItem(
@@ -619,48 +613,46 @@ class MainWindow(QMainWindow):
 
         card_inserted_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_INSERTED))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         card_identification_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_IDENTIFICATION))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         chip_card_accepted_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CHIP_CARD_ACCEPTED))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         enter_pin_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.ENTER_PIN))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         pin_accepted_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.PIN_ACCEPTED))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         authorization_processing_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.AUTHORIZATION_PROCESSING))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         authorization_approved_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.AUTHORIZATION_APPROVED))
+                TerminalStatusResponseCode.INSERT_CARD))
 
         card_removed_button.clicked.connect(
             lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_REMOVED))
+                TerminalStatusResponseCode.INSERT_CARD))
 
-        global card_details
         transaction_complete_button.clicked.connect(
-            lambda: self.pay_button_clicked.emit(
-                card_details
-            ))
+            lambda: self.send_status_signal.emit(
+                TerminalStatusResponseCode.INSERT_CARD))
 
         layout.addLayout(mainContent, 2, 0)
 
         return widget
 
     def handleInsertCardButtonClicked(self):
-        pass
+        self.insert_card_button_clicked.emit()
 
     def handleCardInsertedButtonClicked(self):
         pass
@@ -690,24 +682,23 @@ class MainWindow(QMainWindow):
         pass
 
     def handlePayButtonClicked(self):
-        global config, card_details
+        global config
         card_details = {
             "card_number": config.card_number,
             "expiration_date": config.expiration_date,
             "cvv": config.cvv,
             "card_issuer": config.card_issuer
         }
-        print(f"INFO: Saved card details:\n {card_details}")
+        self.pay_button_clicked.emit(card_details)
 
     def handleManualPayButtonClicked(self):
-        global card_details
         card_details = {
             "card_number": self.card_number_input.text(),
             "expiration_date": self.exp_month.text() + self.exp_year.text(),
             "cvv": self.cvv_input.text(),
             "card_issuer": self.card_dropdown.currentText()
         }
-        print(f"INFO: Saved card details:\n {card_details}")
+        self.pay_button_clicked.emit(card_details)
 
     def saveSettings(self):
         global config

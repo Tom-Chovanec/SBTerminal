@@ -1,9 +1,9 @@
-from PySide6.QtCore import QThread, Signal, QObject, QTimer
+from PySide6.QtCore import QThread, Signal, QObject, QTimer, Slot
 from PySide6.QtNetwork import QAbstractSocket, QTcpServer, QHostAddress, QTcpSocket
 
 from xml_parser import XMLParser
 from terminal_config import config
-from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalMessageResponseCode, TerminalStatusResponseCode, TransactionResponseCode, CardType
 
 price: str
 currency_code: str
@@ -25,7 +25,7 @@ class ConnectionHandler(QObject):
     def __init__(self):
         super().__init__()
         self.is_stopping = False
-        self.conn: QTcpSocket = None
+        self.conn: QTcpSocket | None = None
         self.idle_message_timer = QTimer(self)
 
     def sendXML(self, xml: str):
@@ -78,9 +78,29 @@ class ConnectionHandler(QObject):
                 pass
             print("INFO: Idle message timer stopped")
 
+    @Slot(TerminalStatusResponseCode)
+    def recieve_status_from_ui(self, status_code: TerminalStatusResponseCode):
+        print(f"INFO: Recieved {status_code} from UI")
+        self.send_status(status_code)
+
+    def send_status(self, status_code: TerminalStatusResponseCode):
+        print(f"INFO: Sent status: {status_code}")
+        status_response_dict = MessageGenerator.get_terminal_status_emv_message(
+            default_tags=default_tags,
+            status_code=status_code
+        )
+
+        status_response = XMLParser.dict_to_xml(status_response_dict)
+
+        if self.conn is not None:
+            self.sendXML(status_response)
+            print("INFO: Sent transaction response")
+        else:
+            print("ERROR: No connection")
+
     def send_payment(self, card_details: dict):
         global price, currency_code
-        print("send payment")
+        print("INFO: Sent payment")
 
         transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
             default_tags=default_tags,
@@ -114,6 +134,10 @@ class ConnectionHandler(QObject):
 
     def read_data(self):
         global price, currency_code
+        if self.conn is None:
+            print("ERROR: No conn")
+            return
+
         data = self.conn.readAll()
 
         print("INFO: Received data")
