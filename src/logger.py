@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from enum import Enum
 import os
 import zipfile
 
@@ -59,15 +60,17 @@ file_handler = logging.FileHandler(current_log_path)
 file_handler.setFormatter(CustomFormatter())
 logger.addHandler(file_handler)
 
-def log_event(message: str, level: str = 'info'): # Log levels
+def log_event(message: str, log_type=None, level: str = 'info'):
     archive_log()
+    prefix = f"[{log_type.name}]" if log_type else ""
+    full_message = f"{prefix} {message}".strip()
     if level == 'info':
-        logger.info(message)
+        logger.info(full_message)
     elif level == 'warning':
-        logger.warning(message)
+        logger.warning(full_message)
     elif level == 'error':
-        logger.error(message)
+        logger.error(full_message)
     elif level == 'debug':
-        logger.debug(message)
+        logger.debug(full_message)
     else:
-        logger.info(message)
+        logger.info(full_message)

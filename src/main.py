@@ -2,14 +2,18 @@ import socket
 import xml.etree.ElementTree as ET
 import threading
 
+from enum import Enum
 from xml_parser import XMLParser
 from terminal_config import load_config
-from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalStatusResponseCode, TransactionResponseCode, CardType, TerminalMessageResponseCode
 from ui import MainWindow
 
 from PySide6.QtCore import QThread, Signal, QObject, QTimer
 from PySide6.QtWidgets import QApplication
 from PySide6.QtNetwork import QAbstractSocket, QTcpServer, QHostAddress, QTcpSocket
+
+from logger import log_event
+#ging
 
 price: str
 currency_code: str
@@ -39,8 +43,10 @@ class ConnectionHandler(QObject):
         padded_xml: str = f"\x02\n{xml}\x03"
         if self.conn:
             self.conn.write(padded_xml.encode())
+            log_event("Sent XML", TerminalMessageResponseCode.INFO, "info")
         else:
             print("ERROR: No connected socket")
+            log_event("No connected socket", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")
 
     def send_idle_message_timed(self):
         idle_message_dict = MessageGenerator.get_terminal_status_emv_message(
@@ -53,8 +59,12 @@ class ConnectionHandler(QObject):
         if self.conn is not None:
             self.sendXML(idle_message)
             print("INFO: Sent idle message")
+            log_event("Sent idle message", TerminalStatusResponseCode.IDLE, "info")
         else:
             print("ERROR: No connection")
+            log_event("No connection", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")
+
+    
 
     def start_idle_message_timer(self, timeout: int):
         self.stop_idle_message_timer()  # Stop any existing timer
@@ -65,8 +75,10 @@ class ConnectionHandler(QObject):
             self.idle_message_timer.start((timeout - 2) * 1000)
             print(f"INFO: Idle message timer started with interval {
                   timeout - 2} seconds")
+            log_event(f"Idle message timer started with interval {timeout - 2} seconds", "info")
         else:
             print("WARN: Timeout is 0, idle message timer not started.")
+            log_event("Timeout is 0, idle message timer not started.", "warning")
 
     def stop_idle_message_timer(self):
         if self.idle_message_timer.isActive():
@@ -74,9 +86,11 @@ class ConnectionHandler(QObject):
             try:
                 self.idle_message_timer.timeout.disconnect(
                     self.send_idle_message_timed)
+                log_event("Idle message timer stopped", "info")
             except TypeError:
                 pass
             print("INFO: Idle message timer stopped")
+            log_event("Id")
 
     def send_payment(self, card_details: dict):
         global price, currency_code
