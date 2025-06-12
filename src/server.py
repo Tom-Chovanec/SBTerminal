@@ -1,9 +1,10 @@
 from PySide6.QtCore import QThread, Signal, QObject, QTimer, Slot
 from PySide6.QtNetwork import QAbstractSocket, QTcpServer, QHostAddress, QTcpSocket
+import time
 
 from xml_parser import XMLParser
 from terminal_config import config
-from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalMessageResponseCode, TerminalStatusResponseCode, TransactionResponseCode, CardType, DisplayMessageLevel
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalMessageResponseCode, TerminalStatusResponseCode, TransactionResponseCode, CardType, DisplayMessageLevel, TransactionCancelCode
 
 price: str
 currency_code: str
@@ -122,11 +123,11 @@ class ConnectionHandler(QObject):
 
     def send_payment(self, card_details: dict):
         global price, currency_code
-        print("INFO: Sent payment")
 
         transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
             default_tags=default_tags,
             response_code=TransactionResponseCode.AUTHORISED,
+            transaction_tags=True,
             account_number=card_details["card_number"],
             expiration_date=card_details["expiration_date"],
             card_issuer=card_details["card_issuer"],
@@ -139,7 +140,35 @@ class ConnectionHandler(QObject):
 
         if self.conn is not None:
             self.sendXML(transaction_response)
-            print("INFO: Sent transaction response")
+            print("INFO: Sent payment")
+        else:
+            print("ERROR: No connection")
+
+    def send_cancelation_approval(self):
+        cancel_response_dict = MessageGenerator.get_transaction_emv_cancel_message(
+            default_tags=default_tags,
+            response_code=TransactionCancelCode.Cancel_accepted
+        )
+
+        cancel_response = XMLParser.dict_to_xml(cancel_response_dict)
+
+        if self.conn is not None:
+            self.sendXML(cancel_response)
+            print("INFO: Sent cancellation approval")
+        else:
+            print("ERROR: No connection")
+
+    def send_cancelation_response(self):
+        cancel_response_dict = MessageGenerator.get_transaction_emv_response_message(
+            default_tags=default_tags,
+            response_code=TransactionResponseCode.Transaction_canceled_by_Merchant
+        )
+
+        cancel_response = XMLParser.dict_to_xml(cancel_response_dict)
+
+        if self.conn is not None:
+            self.sendXML(cancel_response)
+            print("INFO: Sent cancellation")
         else:
             print("ERROR: No connection")
 
@@ -179,10 +208,15 @@ class ConnectionHandler(QObject):
             else:
                 print('WARN: Timeout is "0"')
 
-        price = XMLParser.get_value(
-            parsed_xml, 'TransactionAmount', '0.00')
-        currency_code = XMLParser.get_value(
-            parsed_xml, 'CurrencyCode', '')
+        if XMLParser.get_value(parsed_xml, "TransactionEMV"):
+            price = XMLParser.get_value(
+                parsed_xml, 'TransactionAmount', '0.00')
+            currency_code = XMLParser.get_value(
+                parsed_xml, 'CurrencyCode', '')
+        elif XMLParser.get_value(parsed_xml, "TransactionCancelEMV"):
+            self.send_cancelation_approval()
+            time.sleep(0.2)
+            self.send_cancelation_response()
 
         self.price_updated.emit(f"{price} {currency_code}")
 

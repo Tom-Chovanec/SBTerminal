@@ -67,6 +67,7 @@ class DisplayMessageLevel(AlphanumericEnum):
 
 
 class CardIssuerCode(AlphanumericEnum):
+    NONE = ""
     XX = 'Unknown / Non-Payment / Loyalty'
     VS = 'Visa'
     MC = 'Master Card'
@@ -82,6 +83,7 @@ class CardIssuerCode(AlphanumericEnum):
 
 
 class CardType(Enum):
+    NONE = ""
     MAGN = 'MAGN'  # magnetic stripe
     CHIP = 'CHIP'  # chipped card
     CLESS = 'CLESS'  # contactless card
@@ -159,6 +161,17 @@ class TransactionResponseCode(AlphanumericEnum):
     Fault_request = '999'
 
 
+class TransactionCancelCode(AlphanumericEnum):
+    Cancel_accepted = '300'
+    Cancel_refused = '301'
+    Cancel_error = '302'
+    Terminal_deactivated = '396'
+    Terminal_busy = '397'
+    Terminal_not_configured = '398'
+    Terminal_unavailable = '399'
+    Fault_request = '999'
+
+
 def getTransactionResponseStatusFromCode(
         transaction_response_code: str
 ) -> str:
@@ -180,6 +193,22 @@ def getTransactionResponseStatusFromCode(
         return 'REFUSED'
     elif transaction_response_code in canceled:
         return 'CANCELED'
+    return 'INVALID_RESPONSED_CODE'
+
+
+def getTransactionCancelStatusFromCode(
+    cancel_response_code: str
+) -> str:
+    canceled = {'300'}
+    refused = {'301'}
+    error = {'302', '396', '397', '398', '399', '999', }
+
+    if cancel_response_code in canceled:
+        return 'CANCELED'
+    elif cancel_response_code in refused:
+        return 'REFUSED'
+    elif cancel_response_code in error:
+        return 'ERROR'
     return 'INVALID_RESPONSED_CODE'
 
 
@@ -272,14 +301,39 @@ class MessageGenerator:
         }
 
     @staticmethod
+    def get_transaction_emv_cancel_message(
+        default_tags: DefaultTags,
+
+        response_code: TransactionCancelCode,
+    ) -> dict:
+        return {
+            'TransactionCancelEMV': {
+                # default tags
+                'MerchantTransactionID': default_tags.merchant_transaction_id,
+                'ZRNumber': default_tags.zr_number,
+                'DeviceNumber': default_tags.device_number,
+                'DeviceType': default_tags.device_type,
+                'TerminalID': default_tags.terminal_id,
+
+                # response tags
+                'ResponseStatus': getTransactionCancelStatusFromCode(response_code),
+                'ResponseCode': response_code,
+                'ResponseTextMessage': response_code._name_.replace("_", " "),
+            }
+        }
+
+    @staticmethod
     def get_transaction_emv_response_message(
         default_tags: DefaultTags,
         response_code: TransactionResponseCode,
-        account_number: str,
+
+        # Transaction tags
+        transaction_tags: bool = False,
+        account_number: str = "",
         # hashed_epan: str,
-        expiration_date: str,
-        card_issuer: CardIssuerCode,
-        card_type: CardType,
+        expiration_date: str = "",
+        card_issuer: CardIssuerCode = CardIssuerCode.NONE,
+        card_type: CardType = CardType.NONE,
         # unaltered_track_data: str = '',
         original_transaction_amount: float = 0.0,
         currency_code: str = '',
@@ -303,11 +357,15 @@ class MessageGenerator:
                 # card data tags
                 # **({'UnalteredTrackData': unaltered_track_data}
                 #    if unaltered_track_data != '' else {}),
-                'AccountNumber': account_number,
+                **({'AccountNumber': account_number}
+                    if transaction_tags else {}),
                 # 'HashedEpan': hashed_epan
-                'ExpirationDate': expiration_date,
-                'CardIssuer': card_issuer,
-                'CardType': card_type.name,
+                **({'ExpirationDate': expiration_date}
+                    if transaction_tags else {}),
+                **({'CardIssuer': card_issuer}
+                    if transaction_tags else {}),
+                **({'CardType': card_type.name}
+                    if transaction_tags else {}),
 
                 # result tags
                 'ResponseStatus':
@@ -319,22 +377,31 @@ class MessageGenerator:
                 **({'OriginalTransactionAmount': original_transaction_amount}
                         if surcharge_amount != 0.0
                         or discount_amount != 0.0 else {}),
-                'TransactionAmount': original_transaction_amount
-                    + surcharge_amount - discount_amount,
+                **({'TransactionAmount': original_transaction_amount + surcharge_amount - discount_amount}
+                   if transaction_tags else {}),
                 **({'SurchargeAmount': surcharge_amount}
                         if surcharge_amount != 0.0 else {}),
                 **({'DiscountAmount': discount_amount}
                         if discount_amount != 0.0 else {}),
                 # 'CardAmount': '0.00'
-                'ApprovalCode': generate_random_an_string(20),
-                'TransactionDate': date_str,
-                'TransactionTime': time_str,
-                'TransactionTimeOffset': time_offset_str,
-                'TransactionIdentifier': random.randint(10**19, 10**20 - 1),
+                **({'ApprovalCode': generate_random_an_string(20)}
+                   if transaction_tags else {}),
+                **({'TransactionDate': date_str}
+                   if transaction_tags else {}),
+                **({'TransactionTime': time_str}
+                   if transaction_tags else {}),
+                **({'TransactionTimeOffset': time_offset_str}
+                   if transaction_tags else {}),
+                **({'TransactionIdentifier': random.randint(10**19, 10**20 - 1)}
+                   if transaction_tags else {}),
                 # TODO: generate receipts
-                'MerchantReceipt': 'asdasd',
-                'CustomerReceipt': 'sadsad',
-                'CurrencyCode': currency_code,
-                'BarchID': generate_random_an_string(20)
+                **({'MerchantReceipt': 'asdasd'}
+                   if transaction_tags else {}),
+                **({'CustomerReceipt': 'sadsad'}
+                   if transaction_tags else {}),
+                **({'CurrencyCode': currency_code}
+                   if transaction_tags else {}),
+                **({'BarchID': generate_random_an_string(20)}
+                   if transaction_tags else {})
             }
         }
