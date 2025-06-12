@@ -205,9 +205,8 @@ class ConnectionHandler(QObject):
 
 
 class ServerThread(QThread):
-    def __init__(self, ip, port, parent=None):
+    def __init__(self, port, parent=None):
         super().__init__(parent)
-        self.ip = ip
         self.port = port
         self.connection_handler = ConnectionHandler()
         self.connection_handler.moveToThread(self)
@@ -216,27 +215,22 @@ class ServerThread(QThread):
 
     def run(self):
         self.server_socket = QTcpServer()
-        if not self.server_socket.listen(QHostAddress(self.ip), self.port):
+        if not self.server_socket.listen(QHostAddress(QHostAddress.SpecialAddress.Any), self.port):
             print(f"ERROR: Could not start server: {
                   self.server_socket.errorString()}")
-            # Consider emitting an error signal back to MainWindow
             return
 
-        print(f"INFO: Listening on: {self.ip}:{self.port}")
+        print(f"INFO: Listening on: {self.port}")
 
         self.server_socket.newConnection.connect(self.on_new_connection)
 
-        # Start the event loop
         self.exec()
 
-        # After the event loop exits, ensure clean shutdown
         print("INFO: Server thread event loop exited")
-        # Disconnect connections in ConnectionHandler if necessary
         if self.connection_handler:
-            # Add a method to ConnectionHandler to handle clean shutdown
             self.connection_handler.shutdown()
         if self.server_socket:
-            print(f"INFO: socket {self.ip}:{self.port} closed")
+            print(f"INFO: Server on socket: {self.port} closed")
             self.server_socket.close()
 
     def on_new_connection(self):

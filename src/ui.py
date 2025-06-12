@@ -209,15 +209,12 @@ class MainWindow(QMainWindow):
         card_group.setLayout(card_layout)
         layout.addWidget(card_group)
 
-        # IP & Port
         network_group = QGroupBox("Network Settings")
-        # Explicitly set color for group box title
+
         network_group.setStyleSheet("QGroupBox { color: white; }")
         network_layout = QFormLayout()
-        self.ip_input = QLineEdit(config.ip_address)
         self.port_input = QLineEdit(str(config.port))
         self.port_input.setValidator(QIntValidator(1, 65535))
-        network_layout.addRow("IP Address:", self.ip_input)
         network_layout.addRow("Port:", self.port_input)
         network_group.setLayout(network_layout)
         layout.addWidget(network_group)
@@ -288,35 +285,43 @@ class MainWindow(QMainWindow):
             "background-color: transparent; border: none;")
         quick_pay_button.clicked.connect(self.handleQuickPayButtonClicked)
 
+        simulated_pay_button = DiamondButton("Simulated\nPay")
+        simulated_pay_button.setFixedSize(200, 200)
+        simulated_pay_button.setStyleSheet(
+            "background-color: transparent; border: none;")
+        simulated_pay_button.clicked.connect(
+            self.handleSimulatedPayButtonClicked)
+
         button_layout.addWidget(
             manual_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         button_layout.addWidget(
-            quick_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+            simulated_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         mainContent.addLayout(button_layout)
+        mainContent.addWidget(
+            quick_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         mainContent.addSpacerItem(QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         layout.addLayout(mainContent, 2, 0)
 
-        # Bottom manual entry button
-        manual_button = QPushButton("Enter details manually")
-        manual_button.setFont(QFont("Kulim Park", 25))
-        manual_button.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                color: black;
-                border-radius: 20px;
-                padding: 15px;
-                margin: 20px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        manual_button.clicked.connect(self.showManualCardDetailsScreen)
-        layout.addWidget(manual_button)
+        # manual_button = QPushButton("Enter details manually")
+        # manual_button.setFont(QFont("Kulim Park", 25))
+        # manual_button.setStyleSheet("""
+        #     QPushButton {
+        #         background-color: white;
+        #         color: black;
+        #         border-radius: 20px;
+        #         padding: 15px;
+        #         margin: 20px;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #dddddd;
+        #     }
+        # """)
+        # manual_button.clicked.connect(self.showManualCardDetailsScreen)
+        # layout.addWidget(manual_button)
 
         return widget
 
@@ -678,121 +683,131 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def handleQuickPayButtonClicked(self):
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.INSERT_CARD)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "4,00 Insert card",
-        #     1,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
+    def handleSimulatedPayButtonClicked(self):
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.INSERT_CARD)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "4,00 Insert card",
+            1,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
         self.send_status_signal.emit(
             TerminalStatusResponseCode.CARD_INSERTED)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "Please wait",
-        #     2,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.CARD_IDENTIFICATION)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.CHIP_CARD_ACCEPTED)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "Credit Card Amex",
-        #     3,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.ENTER_PIN)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "4,00 $ Enter PIN",
-        #     10,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "*   ",
-        #     11,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "**  ",
-        #     12,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "*** ",
-        #     13,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "****",
-        #     14,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.PIN_ACCEPTED)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.AUTHORIZATION_PROCESSING)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "Please wait",
-        #     1,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.AUTHORIZATION_APPROVED)
-        #
-        # time.sleep(2)
-        #
-        # self.send_display_message.emit(
-        #     "Accepted Take card",
-        #     100,
-        #     DisplayMessageLevel.INFO)
-        #
-        # time.sleep(2)
-        #
-        # self.send_status_signal.emit(
-        #     TerminalStatusResponseCode.CARD_REMOVED)
-        #
-        # time.sleep(2)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "Please wait",
+            2,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.CARD_IDENTIFICATION)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.CHIP_CARD_ACCEPTED)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "Credit Card Amex",
+            3,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.ENTER_PIN)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "4,00 $ Enter PIN",
+            10,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "*   ",
+            11,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "**  ",
+            12,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "*** ",
+            13,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "****",
+            14,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.PIN_ACCEPTED)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.AUTHORIZATION_PROCESSING)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "Please wait",
+            1,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.AUTHORIZATION_APPROVED)
+
+        time.sleep(0.5)
+
+        self.send_display_message.emit(
+            "Accepted Take card",
+            100,
+            DisplayMessageLevel.INFO)
+
+        time.sleep(0.5)
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.CARD_REMOVED)
+
+        time.sleep(0.5)
+
+        self.handlePayButtonClicked()
+        self.pay_button_clicked.emit(card_details)
+
+    def handleQuickPayButtonClicked(self):
+
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.CARD_INSERTED)
+
+        time.sleep(0.2)
 
         self.handlePayButtonClicked()
         self.pay_button_clicked.emit(card_details)
@@ -820,7 +835,6 @@ class MainWindow(QMainWindow):
     def saveSettings(self):
         global config
 
-        ip = self.ip_input.text()
         port = int(self.port_input.text()
                    ) if self.port_input.text().isdigit() else 0
         send_response = self.send_response_toggle.isChecked()
@@ -829,7 +843,6 @@ class MainWindow(QMainWindow):
         year = self.exp_year_settings.text()
         expiration = f"{month}{year}"
 
-        config.ip_address = ip
         config.port = port
         config.send_rsp_before_timeout = send_response
         config.card_number = card_number
@@ -868,7 +881,7 @@ class MainWindow(QMainWindow):
 
         if not self.server_thread:
             self.server_thread = ServerThread(
-                config.ip_address, config.port, self)
+                config.port, self)
             self.server_thread.connection_handler.price_updated.connect(
                 self.showPaymentScreen)
             self.server_thread.connection_handler.client_disconnected.connect(
@@ -913,7 +926,7 @@ class MainWindow(QMainWindow):
                 self.send_status_signal.disconnect(
                     self.server_thread.connection_handler.recieve_status_from_ui)
                 self.send_display_message.disconnect(
-                    self.server_thread.connection_handler.recieve_status_from_ui)
+                    self.server_thread.connection_handler.recieve_display_from_ui)
             except TypeError:
                 pass
         event.accept()

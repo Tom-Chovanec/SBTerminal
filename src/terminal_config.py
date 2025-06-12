@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    ip_address: str
     port: int
     send_rsp_before_timeout: bool
     card_issuer: str
@@ -17,7 +16,6 @@ class Config:
 
 def dict_to_config(data: dict) -> Config:
     return Config(
-        ip_address=data.get("ip_address", ""),
         port=data.get("port", 0),
         send_rsp_before_timeout=data.get("send_rsp_before_timeout", False),
         card_issuer=data.get("card_issuer", ""),
@@ -30,7 +28,6 @@ def dict_to_config(data: dict) -> Config:
 
 def config_to_dict(config: Config) -> dict:
     return {
-        'ip_address': config.ip_address,
         'port': config.port,
         'send_rsp_before_timeout': config.send_rsp_before_timeout,
         'card_issuer': config.card_issuer,
@@ -42,7 +39,6 @@ def config_to_dict(config: Config) -> dict:
 
 
 default_config_dict: dict = {
-    'ip_address': '127.0.0.1',
     'port': 2605,
     'send_rsp_before_timeout': True,
     'card_issuer': 'VS',
