@@ -3,7 +3,7 @@ from PySide6.QtNetwork import QAbstractSocket, QTcpServer, QHostAddress, QTcpSoc
 
 from xml_parser import XMLParser
 from terminal_config import config
-from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalMessageResponseCode, TerminalStatusResponseCode, TransactionResponseCode, CardType
+from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, TerminalMessageResponseCode, TerminalStatusResponseCode, TransactionResponseCode, CardType, DisplayMessageLevel
 
 price: str
 currency_code: str
@@ -80,8 +80,11 @@ class ConnectionHandler(QObject):
 
     @Slot(TerminalStatusResponseCode)
     def recieve_status_from_ui(self, status_code: TerminalStatusResponseCode):
-        print(f"INFO: Recieved {status_code} from UI")
         self.send_status(status_code)
+
+    @Slot(str, int, DisplayMessageLevel)
+    def recieve_display_from_ui(self, text: str, message_code: int, message_level: DisplayMessageLevel):
+        self.send_display_message(text, message_code, message_level)
 
     def send_status(self, status_code: TerminalStatusResponseCode):
         print(f"INFO: Sent status: {status_code}")
@@ -94,6 +97,25 @@ class ConnectionHandler(QObject):
 
         if self.conn is not None:
             self.sendXML(status_response)
+            print("INFO: Sent transaction response")
+        else:
+            print("ERROR: No connection")
+
+    def send_display_message(self, text: str, message_code: int, message_level: DisplayMessageLevel):
+        print(f"INFO: Sent display message: {text}")
+        display_message_response_dict = MessageGenerator.get_terminal_display_emv_message(
+            default_tags=default_tags,
+            display_message=text,
+            display_message_code=message_code,
+            display_message_level=message_level,
+            language_code="en"
+        )
+
+        display_message_response = XMLParser.dict_to_xml(
+            display_message_response_dict)
+
+        if self.conn is not None:
+            self.sendXML(display_message_response)
             print("INFO: Sent transaction response")
         else:
             print("ERROR: No connection")

@@ -255,7 +255,7 @@ class MessageGenerator:
         language_code: str
     ) -> dict:
         return {
-            'TerminalStatusEMV': {
+            'TerminalDisplayEMV': {
                 # default tags
                 'MerchantTransactionID': default_tags.merchant_transaction_id,
                 'ZRNumber': default_tags.zr_number,

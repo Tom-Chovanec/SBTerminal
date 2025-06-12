@@ -1,4 +1,5 @@
 import os
+import time
 from PySide6.QtGui import (
     QPainterPath,
     QPixmap,
@@ -31,7 +32,7 @@ from PySide6.QtWidgets import (
     QSpacerItem,
 )
 
-from message_generator import TerminalStatusResponseCode
+from message_generator import TerminalStatusResponseCode, DisplayMessageLevel
 from terminal_config import config, save_config
 from server import ServerThread
 
@@ -50,6 +51,10 @@ def getImagePath(name: str) -> str:
 
 
 class DiamondButton(QPushButton):
+    def __init__(self, text: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.text = text
+
     def paintEvent(self, _):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -93,18 +98,20 @@ class DiamondButton(QPushButton):
         painter.setPen(QColor("white"))
         painter.setFont(QFont("Kulim Park", 25))
         painter.drawText(
-            self.rect(), Qt.AlignmentFlag.AlignCenter, "Tap\nhere")
+            self.rect(), Qt.AlignmentFlag.AlignCenter, self.text)
 
 
 class MainWindow(QMainWindow):
     pay_button_clicked = Signal(dict)
     send_status_signal = Signal(TerminalStatusResponseCode)
+    send_display_message = Signal(str, int, DisplayMessageLevel)
 
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("SBTerminal")
         self.setFixedSize(QSize(480, 800))
+        # self.setWindowState(Qt.WindowFullScreen)
         self.setStyleSheet("background-color: #181818;")
 
         self.server_thread: ServerThread | None = None
@@ -266,16 +273,28 @@ class MainWindow(QMainWindow):
         mainContent.addSpacerItem(QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
+        button_layout = QHBoxLayout()
         # Diamond-shaped button
-        diamond_button = DiamondButton()
-        diamond_button.setFixedSize(200, 200)
-        diamond_button.setStyleSheet(
+        manual_pay_button = DiamondButton("Manual\nPay")
+        manual_pay_button.setFixedSize(200, 200)
+        manual_pay_button.setStyleSheet(
             "background-color: transparent; border: none;")
-        diamond_button.clicked.connect(self.showMessagesScreen)
-        diamond_button.clicked.connect(self.handlePayButtonClicked)
+        manual_pay_button.clicked.connect(self.showMessagesScreen)
+        manual_pay_button.clicked.connect(self.handlePayButtonClicked)
 
-        mainContent.addWidget(
-            diamond_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        quick_pay_button = DiamondButton("Quick\npay")
+        quick_pay_button.setFixedSize(200, 200)
+        quick_pay_button.setStyleSheet(
+            "background-color: transparent; border: none;")
+        quick_pay_button.clicked.connect(self.handleQuickPayButtonClicked)
+
+        button_layout.addWidget(
+            manual_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        button_layout.addWidget(
+            quick_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        mainContent.addLayout(button_layout)
 
         mainContent.addSpacerItem(QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
@@ -659,35 +678,124 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def handleInsertCardButtonClicked(self):
-        pass
+    def handleQuickPayButtonClicked(self):
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.INSERT_CARD)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "4,00 Insert card",
+        #     1,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        self.send_status_signal.emit(
+            TerminalStatusResponseCode.CARD_INSERTED)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "Please wait",
+        #     2,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.CARD_IDENTIFICATION)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.CHIP_CARD_ACCEPTED)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "Credit Card Amex",
+        #     3,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.ENTER_PIN)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "4,00 $ Enter PIN",
+        #     10,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "*   ",
+        #     11,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "**  ",
+        #     12,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "*** ",
+        #     13,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "****",
+        #     14,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.PIN_ACCEPTED)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.AUTHORIZATION_PROCESSING)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "Please wait",
+        #     1,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.AUTHORIZATION_APPROVED)
+        #
+        # time.sleep(2)
+        #
+        # self.send_display_message.emit(
+        #     "Accepted Take card",
+        #     100,
+        #     DisplayMessageLevel.INFO)
+        #
+        # time.sleep(2)
+        #
+        # self.send_status_signal.emit(
+        #     TerminalStatusResponseCode.CARD_REMOVED)
+        #
+        # time.sleep(2)
 
-    def handleCardInsertedButtonClicked(self):
-        pass
-
-    def handleCardIdentificationButtonClicked(self):
-        pass
-
-    def handleChipCardAcceptedButtonClicked(self):
-        pass
-
-    def handleEnterPinButtonClicked(self):
-        pass
-
-    def handlePinAcceptedButtonClicked(self):
-        pass
-
-    def handleAuthorizationProcessingButtonClicked(self):
-        pass
-
-    def handleAuthorizationApprovedButtonClicked(self):
-        pass
-
-    def handleCardRemovedButtonClicked(self):
-        pass
-
-    def handleTransactionCompleteButtonClicked(self):
-        pass
+        self.handlePayButtonClicked()
+        self.pay_button_clicked.emit(card_details)
 
     def handlePayButtonClicked(self):
         global config, card_details
@@ -745,6 +853,8 @@ class MainWindow(QMainWindow):
                     self.server_thread.connection_handler.send_payment)
                 self.send_status_signal.disconnect(
                     self.server_thread.connection_handler.recieve_status_from_ui)
+                self.send_display_message.disconnect(
+                    self.server_thread.connection_handler.recieve_display_from_ui)
             except TypeError:
                 # Disconnect might raise TypeError if not connected
                 pass
@@ -767,6 +877,8 @@ class MainWindow(QMainWindow):
                 self.server_thread.connection_handler.send_payment)
             self.send_status_signal.connect(
                 self.server_thread.connection_handler.recieve_status_from_ui)
+            self.send_display_message.connect(
+                self.server_thread.connection_handler.recieve_display_from_ui)
             self.server_thread.start()
 
         self.setCentralWidget(self.createIdleScreen())
@@ -785,17 +897,12 @@ class MainWindow(QMainWindow):
             print("ERROR: No server thread")
             return
 
-        # self.insert_card_button_clicked.connect(
-        #     lambda: self.server_thread.connection_handler.send_status(
-        #         status_code=TerminalStatusResponseCode.INSERT_CARD)
-        # )
         self.setCentralWidget(self.createMessagesScreen())
 
     def closeEvent(self, event):
         """Ensures the server thread is stopped when the window is closed."""
         if self.server_thread and self.server_thread.isRunning():
             self.server_thread.stop()
-            # Disconnect signals
             try:
                 self.server_thread.connection_handler.price_updated.disconnect(
                     self.showPaymentScreen)
@@ -803,8 +910,9 @@ class MainWindow(QMainWindow):
                     self.showIdleScreen)
                 self.pay_button_clicked.disconnect(
                     self.server_thread.connection_handler.send_payment)
-
                 self.send_status_signal.disconnect(
+                    self.server_thread.connection_handler.recieve_status_from_ui)
+                self.send_display_message.disconnect(
                     self.server_thread.connection_handler.recieve_status_from_ui)
             except TypeError:
                 pass
