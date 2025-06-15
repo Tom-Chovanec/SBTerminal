@@ -9,13 +9,7 @@ from message_generator import CardIssuerCode, MessageGenerator, DefaultTags, Ter
 price: str
 currency_code: str
 
-default_tags = DefaultTags(
-    merchant_transaction_id=2,
-    zr_number=2055,
-    device_number=601,
-    device_type=6,
-    terminal_id='Term01'
-)
+default_tags: DefaultTags
 
 
 class ConnectionHandler(QObject):
@@ -31,7 +25,7 @@ class ConnectionHandler(QObject):
 
     def sendXML(self, xml: str):
         if self.is_stopping or not self.conn:
-            if not self.is_stopping:  # Only print error if not stopping
+            if not self.is_stopping:
                 print(
                     "ERROR: Cannot send XML, no connected socket or handler is stopping")
             return
@@ -87,6 +81,13 @@ class ConnectionHandler(QObject):
     def recieve_display_from_ui(self, text: str, message_code: int, message_level: DisplayMessageLevel):
         self.send_display_message(text, message_code, message_level)
 
+    @Slot(TransactionResponseCode, dict)
+    def recieve_transaction_response_from_ui(self, response_code: TransactionResponseCode, card_details: dict):
+        if card_details != {}:
+            self.send_transaction_response(response_code, card_details)
+        else:
+            self.send_transaction_response(response_code)
+
     def send_status(self, status_code: TerminalStatusResponseCode):
         print(f"INFO: Sent status: {status_code}")
         status_response_dict = MessageGenerator.get_terminal_status_emv_message(
@@ -121,13 +122,37 @@ class ConnectionHandler(QObject):
         else:
             print("ERROR: No connection")
 
+    def send_transaction_response(self, response_code: TransactionResponseCode, card_details: dict = {}):
+        print(f"Sent transaction response: {response_code}")
+        if card_details != {}:
+            transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
+                default_tags=default_tags,
+                response_code=response_code,
+                account_number=card_details["card_number"],
+                expiration_date=card_details["expiration_date"],
+                card_issuer=card_details["card_issuer"],
+                card_type=CardType.CHIP,
+                original_transaction_amount=float(price),
+                currency_code=currency_code
+            )
+        else:
+            transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
+                default_tags=default_tags,
+                response_code=response_code
+            )
+        transaction_response = XMLParser.dict_to_xml(transaction_response_dict)
+
+        if self.conn is not None:
+            self.sendXML(transaction_response)
+        else:
+            print("ERROR: No connection")
+
     def send_payment(self, card_details: dict):
         global price, currency_code
 
         transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
             default_tags=default_tags,
             response_code=TransactionResponseCode.AUTHORISED,
-            transaction_tags=True,
             account_number=card_details["card_number"],
             expiration_date=card_details["expiration_date"],
             card_issuer=card_details["card_issuer"],
@@ -211,8 +236,17 @@ class ConnectionHandler(QObject):
         if XMLParser.get_value(parsed_xml, "TransactionEMV"):
             price = XMLParser.get_value(
                 parsed_xml, 'TransactionAmount', '0.00')
-            currency_code = XMLParser.get_value(
-                parsed_xml, 'CurrencyCode', '')
+            currency_code = XMLParser.get_value(parsed_xml, 'CurrencyCode', '')
+            global default_tags
+            default_tags = DefaultTags(
+                merchant_transaction_id=XMLParser.get_value(
+                    parsed_xml, 'MerchantTransactionID', 0),
+                zr_number=XMLParser.get_value(parsed_xml, 'ZRNumber', 0),
+                device_number=XMLParser.get_value(
+                    parsed_xml, 'DeviceNumber', 0),
+                device_type=XMLParser.get_value(parsed_xml, 'DeviceType', 0),
+                terminal_id=XMLParser.get_value(parsed_xml, 'TerminalID', 0),
+            )
         elif XMLParser.get_value(parsed_xml, "TransactionCancelEMV"):
             self.send_cancelation_approval()
             time.sleep(0.2)

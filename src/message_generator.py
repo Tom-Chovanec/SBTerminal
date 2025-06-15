@@ -327,8 +327,6 @@ class MessageGenerator:
         default_tags: DefaultTags,
         response_code: TransactionResponseCode,
 
-        # Transaction tags
-        transaction_tags: bool = False,
         account_number: str = "",
         # hashed_epan: str,
         expiration_date: str = "",
@@ -345,6 +343,8 @@ class MessageGenerator:
         date_str = now.strftime('%d%m%y')
         time_str = now.strftime('%H%M%S')
         time_offset_str = f"UTC+{utc_offset.total_seconds() // 3600:.0f}"
+        is_authorized = getTransactionResponseStatusFromCode(
+            response_code.value) == "AUTHORIZED"
         return {
             'TransactionEMV': {
                 # default tags
@@ -358,14 +358,14 @@ class MessageGenerator:
                 # **({'UnalteredTrackData': unaltered_track_data}
                 #    if unaltered_track_data != '' else {}),
                 **({'AccountNumber': account_number}
-                    if transaction_tags else {}),
+                    if is_authorized else {}),
                 # 'HashedEpan': hashed_epan
                 **({'ExpirationDate': expiration_date}
-                    if transaction_tags else {}),
+                    if is_authorized else {}),
                 **({'CardIssuer': card_issuer}
-                    if transaction_tags else {}),
+                    if is_authorized else {}),
                 **({'CardType': card_type.name}
-                    if transaction_tags else {}),
+                    if is_authorized else {}),
 
                 # result tags
                 'ResponseStatus':
@@ -378,30 +378,30 @@ class MessageGenerator:
                         if surcharge_amount != 0.0
                         or discount_amount != 0.0 else {}),
                 **({'TransactionAmount': original_transaction_amount + surcharge_amount - discount_amount}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'SurchargeAmount': surcharge_amount}
                         if surcharge_amount != 0.0 else {}),
                 **({'DiscountAmount': discount_amount}
                         if discount_amount != 0.0 else {}),
                 # 'CardAmount': '0.00'
                 **({'ApprovalCode': generate_random_an_string(20)}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'TransactionDate': date_str}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'TransactionTime': time_str}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'TransactionTimeOffset': time_offset_str}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'TransactionIdentifier': random.randint(10**19, 10**20 - 1)}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 # TODO: generate receipts
                 **({'MerchantReceipt': 'asdasd'}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'CustomerReceipt': 'sadsad'}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'CurrencyCode': currency_code}
-                   if transaction_tags else {}),
+                   if is_authorized else {}),
                 **({'BarchID': generate_random_an_string(20)}
-                   if transaction_tags else {})
+                   if is_authorized else {})
             }
         }

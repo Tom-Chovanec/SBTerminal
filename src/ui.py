@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QCheckBox,
+    QSpinBox,
     QPushButton,
     QGridLayout,
     QComboBox,
@@ -32,7 +33,7 @@ from PySide6.QtWidgets import (
     QSpacerItem,
 )
 
-from message_generator import TerminalStatusResponseCode, DisplayMessageLevel
+from message_generator import TerminalStatusResponseCode, DisplayMessageLevel, TransactionResponseCode
 from terminal_config import config, save_config
 from server import ServerThread
 
@@ -105,6 +106,7 @@ class MainWindow(QMainWindow):
     pay_button_clicked = Signal(dict)
     send_status_signal = Signal(TerminalStatusResponseCode)
     send_display_message = Signal(str, int, DisplayMessageLevel)
+    send_transaction_response = Signal(TransactionResponseCode, dict)
 
     def __init__(self):
         super().__init__()
@@ -486,202 +488,244 @@ class MainWindow(QMainWindow):
         mainContent = QVBoxLayout()
         mainContent.setSpacing(20)
 
-        insert_card_button = QPushButton("Insert Card")
-        insert_card_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(insert_card_button)
+        # Terminal Status Section
+        terminal_status_title = QLabel("Terminal Status")
+        terminal_status_title.setStyleSheet(
+            "font-weight: bold; font-size: 14px;")
+        mainContent.addWidget(terminal_status_title)
 
-        card_inserted_button = QPushButton("Card Inserted")
-        card_inserted_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(card_inserted_button)
+        terminal_status_layout = QHBoxLayout()
+        # Status options mapping
+        self.terminal_status_response_options = [
+            ("Idle", TerminalStatusResponseCode.IDLE),
+            ("Card inserted", TerminalStatusResponseCode.CARD_INSERTED),
+            ("Card removed", TerminalStatusResponseCode.CARD_REMOVED),
+            ("Chip card accepted", TerminalStatusResponseCode.CHIP_CARD_ACCEPTED),
+            ("Swiped card accepted", TerminalStatusResponseCode.SWIPED_CARD_ACCEPTED),
+            ("Contactless card accepted",
+             TerminalStatusResponseCode.CONTACTLESS_CARD_ACCEPTED),
+            ("Card identification", TerminalStatusResponseCode.CARD_IDENTIFICATION),
+            ("Card not accepted", TerminalStatusResponseCode.CARD_NOT_ACCEPTED),
+            ("Enter PIN", TerminalStatusResponseCode.ENTER_PIN),
+            ("PIN accepted", TerminalStatusResponseCode.PIN_ACCEPTED),
+            ("Wrong PIN", TerminalStatusResponseCode.WRONG_PIN),
+            ("Authorization processing",
+             TerminalStatusResponseCode.AUTHORIZATION_PROCESSING),
+            ("Authorization approved",
+             TerminalStatusResponseCode.AUTHORIZATION_APPROVED),
+            ("Authorization declined",
+             TerminalStatusResponseCode.AUTHORIZATION_DECLINED),
+            ("Insert card", TerminalStatusResponseCode.INSERT_CARD),
+            ("Void processing", TerminalStatusResponseCode.VOID_PROCESSING),
+            ("Initialization processing",
+             TerminalStatusResponseCode.INITIALIZATION_PROCESSING),
+            ("Shift close processing",
+             TerminalStatusResponseCode.SHIFT_CLOSE_PROCESSING),
+            ("Activation processing", TerminalStatusResponseCode.ACTIVATION_PROCESSING),
+            ("Deactivation processing",
+             TerminalStatusResponseCode.DEACTIVATION_PROCESSING),
+            ("Download processing", TerminalStatusResponseCode.DOWNLOAD_PROCESSING),
+            ("Top-up processing", TerminalStatusResponseCode.TOP_UP_PROCESSING),
+            ("Refund processing", TerminalStatusResponseCode.REFUND_PROCESSING),
+            ("Terminal is error", TerminalStatusResponseCode.TERMINAL_IS_ERROR),
+            ("Terminal is deactivated",
+             TerminalStatusResponseCode.TERMINAL_IS_DEACTIVATED),
+            ("Terminal is busy", TerminalStatusResponseCode.TERMINAL_IS_BUSY),
+            ("Terminal not configured",
+             TerminalStatusResponseCode.TERMINAL_NOT_CONFIGURED),
+            ("Terminal unavailable", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE),
+            ("Fault request", TerminalStatusResponseCode.FAULT_REQUEST),
+        ]
 
-        card_identification_button = QPushButton("Card Identification")
-        card_identification_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(card_identification_button)
+        # Dropdown menu
+        self.terminal_status_dropdown = QComboBox()
+        self.terminal_status_dropdown.addItems([option[0]
+                                                for option in self.terminal_status_response_options])
+        terminal_status_layout.addWidget(self.terminal_status_dropdown)
 
-        chip_card_accepted_button = QPushButton("Chip card accepted")
-        chip_card_accepted_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(chip_card_accepted_button)
+        # Execute button
+        send_terminal_status_button = QPushButton("Send Terminal Status")
+        send_terminal_status_button.clicked.connect(
+            self.execute_selected_terminal_status)
+        terminal_status_layout.addWidget(send_terminal_status_button)
 
-        enter_pin_button = QPushButton("Enter PIN")
-        enter_pin_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(enter_pin_button)
+        mainContent.addLayout(terminal_status_layout)
 
-        pin_accepted_button = QPushButton("Pin accepted")
-        pin_accepted_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(pin_accepted_button)
+        # Display Message Section
+        display_message_title = QLabel("Display Message")
+        display_message_title.setStyleSheet(
+            "font-weight: bold; font-size: 14px;")
+        mainContent.addWidget(display_message_title)
 
-        authorization_processing_button = QPushButton(
-            "Authorization processing")
-        authorization_processing_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(authorization_processing_button)
+        display_message_layout = QHBoxLayout()
 
-        authorization_approved_button = QPushButton("Authorization approved")
-        authorization_approved_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(authorization_approved_button)
+        # Text input
+        self.display_message_text_input = QLineEdit()
+        self.display_message_text_input.setPlaceholderText("Enter message...")
+        display_message_layout.addWidget(self.display_message_text_input)
 
-        card_removed_button = QPushButton("Card removed")
-        card_removed_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(card_removed_button)
+        # Numeric input
+        self.display_message_numeric_input = QSpinBox()
+        self.display_message_numeric_input.setRange(0, 9999)
+        self.display_message_numeric_input.setValue(0)
+        display_message_layout.addWidget(self.display_message_numeric_input)
 
-        transaction_complete_button = QPushButton("Transaction complete")
-        transaction_complete_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        mainContent.addWidget(transaction_complete_button)
+        # Display message level dropdown
+        self.display_message_level_dropdown = QComboBox()
+        self.display_message_level_options = [
+            ("INFO", DisplayMessageLevel.INFO),
+            ("ERROR", DisplayMessageLevel.ERROR),
+        ]
+        self.display_message_level_dropdown.addItems([option[0]
+                                                      for option in self.display_message_level_options])
+        display_message_layout.addWidget(self.display_message_level_dropdown)
 
-        insert_card_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.INSERT_CARD))
+        # Send display message button
+        send_display_message_button = QPushButton("Send Display Message")
+        send_display_message_button.clicked.connect(
+            self.send_display_message_clicked)
+        display_message_layout.addWidget(send_display_message_button)
 
-        card_inserted_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_INSERTED))
+        mainContent.addLayout(display_message_layout)
 
-        card_identification_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_IDENTIFICATION))
+        # Transaction response section
+        transaction_response_title = QLabel("Transaction Response")
+        transaction_response_title.setStyleSheet(
+            "font-weight: bold; font-size: 14px;")
+        mainContent.addWidget(transaction_response_title)
 
-        chip_card_accepted_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CHIP_CARD_ACCEPTED))
+        transaction_response_layout = QHBoxLayout()
+        self.transaction_response_options = [
+            ("Authorized", TransactionResponseCode.AUTHORISED),
+            ("Referred", TransactionResponseCode.REFERRED),
+            ("Referred Special Conditions",
+             TransactionResponseCode.REFERRED_SPECIAL_CONDITIONS),
+            ("Invalid Merchant", TransactionResponseCode.INVALID_MERCHANT),
+            ("Hold Card", TransactionResponseCode.HOLD_CARD),
+            ("Refused", TransactionResponseCode.REFUSED),
+            ("Error", TransactionResponseCode.ERROR),
+            ("Hold Card Special Conditions",
+             TransactionResponseCode.HOLD_CARD_SPECIAL_CONDITIONS),
+            ("Approve After Identification",
+             TransactionResponseCode.APPROVE_AFTER_IDENTIFICATION),
+            ("Approved for Partial Amount",
+             TransactionResponseCode.APPROVED_FOR_PARTIAL_AMOUNT),
+            ("Approved VIP", TransactionResponseCode.APPROVED_VIP),
+            ("Invalid Transaction", TransactionResponseCode.INVALID_TRANSACTION),
+            ("Invalid Amount", TransactionResponseCode.INVALID_AMOUNT),
+            ("Invalid Account", TransactionResponseCode.INVALID_ACCOUNT),
+            ("Invalid Card Issuer", TransactionResponseCode.INVALID_CARD_ISSUER),
+            ("Approved Update Track3", TransactionResponseCode.APPROVED_UPDATE_TRACK3),
+            ("Annulation by Client", TransactionResponseCode.ANNULATION_BY_CLIENT),
+            ("Customer Dispute", TransactionResponseCode.CUSTOMER_DISPUTE),
+            ("Re-enter Transaction", TransactionResponseCode.RE_ENTER_TRANSACTION),
+            ("Invalid Response", TransactionResponseCode.INVALID_RESPONSE),
+            ("No Action Taken", TransactionResponseCode.NO_ACTION_TAKEN),
+            ("Suspected Malfunction", TransactionResponseCode.SUSPECTED_MALFUNCTION),
+            ("Unacceptable Transaction Fee",
+             TransactionResponseCode.UNACCEPTABLE_TRANSACTION_FEE,),
+            ("Access Denied", TransactionResponseCode.ACCESS_DENIED),
+            ("Format Error", TransactionResponseCode.FORMAT_ERROR),
+            ("Unknown Acquirer Account",
+             TransactionResponseCode.UNKNOWN_ACQUIRER_ACCOUNT),
+            ("Card Expired", TransactionResponseCode.CARD_EXPIRED),
+            ("Fraud Suspicion", TransactionResponseCode.FRAUD_SUSPICION),
+            ("Security Code Expired", TransactionResponseCode.SECURITY_CODE_EXPIRED),
+            ("Function Not Supported", TransactionResponseCode.FUNCTION_NOT_SUPPORTED),
+            ("Lost Card", TransactionResponseCode.LOST_CARD),
+            ("Stolen Card", TransactionResponseCode.STOLEN_CARD),
+            ("Limit Exceeded", TransactionResponseCode.LIMIT_EXCEEDED),
+            ("Card Expired Pick Up", TransactionResponseCode.CARD_EXPIRED_PICK_UP),
+            ("Invalid Security Code", TransactionResponseCode.INVALID_SECURITY_CODE),
+            ("Unknown Card", TransactionResponseCode.UNKNOWN_CARD),
+            ("Illegal Transaction", TransactionResponseCode.ILLEGAL_TRANSACTION),
+            ("Transaction Not Permitted",
+             TransactionResponseCode.TRANSACTION_NOT_PERMITTED),
+            ("Restricted Card", TransactionResponseCode.RESTRICTED_CARD),
+            ("Security Rules Violated",
+             TransactionResponseCode.SECURITY_RULES_VIOLATED),
+            ("Exceed Withdrawal Frequency",
+             TransactionResponseCode.EXCEED_WITHDRAWAL_FREQUENCY),
+            ("Transaction Timed Out", TransactionResponseCode.TRANSACTION_TIMED_OUT),
+            ("Exceed PIN Tries", TransactionResponseCode.EXCEED_PIN_TRIES),
+            ("Invalid Debit Account", TransactionResponseCode.INVALID_DEBIT_ACCOUNT),
+            ("Invalid Credit Account", TransactionResponseCode.INVALID_CREDIT_ACCOUNT),
+            ("Blocked First Used", TransactionResponseCode.BLOCKED_FIRST_USED),
+            ("Credit Issuer Unavailable",
+             TransactionResponseCode.CREDIT_ISSUER_UNAVAILABLE),
+            ("PIN Cryptographic Error",
+             TransactionResponseCode.PIN_CRYPROGRAPHIC_ERROR),
+            ("Incorrect CCV", TransactionResponseCode.INCORRECT_CCV),
+            ("Unable to Verify PIN", TransactionResponseCode.UNABLE_TO_VERIFY_PIN),
+            ("Rejected by Card Issuer",
+             TransactionResponseCode.REJECTED_BY_CARD_ISSUER),
+            ("Issuer Unavailable", TransactionResponseCode.ISSUER_UNAVAILABLE),
+            ("Routing Error", TransactionResponseCode.ROUTING_ERROR),
+            ("Transaction Cannot Complete",
+             TransactionResponseCode.TRANSACTION_CANNOT_COMPLETE),
+            ("Duplicate Transaction", TransactionResponseCode.DUPLICATE_TRANSACTION),
+            ("System Error", TransactionResponseCode.SYSTEM_ERROR),
+            ("Offline Authorised", TransactionResponseCode.OFFLINE_AUTHORISED),
+            ("Issuer Unavailable Authorised",
+             TransactionResponseCode.ISSUER_UNAVAILABLE_AUTHORISED,),
+            ("Offline Refused", TransactionResponseCode.OFFLINE_REFUSED),
+            ("Issuer Unavailable Refused",
+             TransactionResponseCode.ISSUER_UNAVAILABLE_REFUSED,),
+            ("Transaction Canceled by Merchant",
+             TransactionResponseCode.Transaction_canceled_by_Merchant),
+            ("Transaction Canceled by Terminal User",
+             TransactionResponseCode.Transaction_canceled_by_terminal_user,),
+            ("Transaction Canceled After Exception",
+             TransactionResponseCode.Transaction_canceled_after_exception,),
+            ("Transaction Canceled After Removed Card",
+             TransactionResponseCode.Transaction_canceled_after_removed_card,),
+            ("Terminal is Deactivated",
+             TransactionResponseCode.Terminal_is_deactivated),
+            ("Terminal is Busy", TransactionResponseCode.Terminal_is_busy),
+            ("Terminal Not Configured",
+             TransactionResponseCode.Terminal_not_configured),
+            ("Terminal Unavailable", TransactionResponseCode.Terminal_unavailable),
+            ("Fault Request", TransactionResponseCode.Fault_request),
+        ]
 
-        enter_pin_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.ENTER_PIN))
+        # Dropdown menu
+        self.transaction_response_dropdown = QComboBox()
+        self.transaction_response_dropdown.addItems([option[0]
+                                                     for option in self.transaction_response_options])
+        transaction_response_layout.addWidget(
+            self.transaction_response_dropdown)
 
-        pin_accepted_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.PIN_ACCEPTED))
+        # Execute button
+        send_transaction_response_button = QPushButton("Send Terminal Status")
+        send_transaction_response_button.clicked.connect(
+            self.execute_selected_transaction_response)
+        transaction_response_layout.addWidget(send_transaction_response_button)
 
-        authorization_processing_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.AUTHORIZATION_PROCESSING))
-
-        authorization_approved_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.AUTHORIZATION_APPROVED))
-
-        card_removed_button.clicked.connect(
-            lambda: self.send_status_signal.emit(
-                TerminalStatusResponseCode.CARD_REMOVED))
-
-        global card_details
-        transaction_complete_button.clicked.connect(
-            lambda: self.pay_button_clicked.emit(
-                card_details
-            ))
+        mainContent.addLayout(transaction_response_layout)
 
         layout.addLayout(mainContent, 2, 0)
-
         return widget
+
+    def send_display_message_clicked(self):
+        message = self.display_message_text_input.text()
+        numeric_value = self.display_message_numeric_input.value()
+        level_index = self.display_message_level_dropdown.currentIndex()
+        level = self.display_message_level_options[level_index][1]
+
+        self.send_display_message.emit(message, numeric_value, level)
+
+    def execute_selected_terminal_status(self):
+        selected_index = self.terminal_status_dropdown.currentIndex()
+        selected_option = self.terminal_status_response_options[selected_index]
+
+        self.send_status_signal.emit(selected_option[1])
+
+    def execute_selected_transaction_response(self):
+        selected_index = self.transaction_response_dropdown.currentIndex()
+        selected_option = self.transaction_response_options[selected_index]
+
+        global card_details
+        self.send_transaction_response.emit(selected_option[1], card_details)
 
     def handleSimulatedPayButtonClicked(self):
         self.send_status_signal.emit(
@@ -856,7 +900,6 @@ class MainWindow(QMainWindow):
         """Switches to the settings screen."""
         if self.server_thread and self.server_thread.isRunning():
             self.server_thread.stop()
-            # Disconnect signals to avoid issues
             try:
                 self.server_thread.connection_handler.price_updated.disconnect(
                     self.showPaymentScreen)
@@ -868,10 +911,11 @@ class MainWindow(QMainWindow):
                     self.server_thread.connection_handler.recieve_status_from_ui)
                 self.send_display_message.disconnect(
                     self.server_thread.connection_handler.recieve_display_from_ui)
+                self.send_transaction_response.disconnect(
+                    self.server_thread.connection_handler.recieve_transaction_response_from_ui)
             except TypeError:
-                # Disconnect might raise TypeError if not connected
                 pass
-            self.server_thread = None  # Set to None after stopping and disconnecting
+            self.server_thread = None
 
         self.setCentralWidget(self.createSettingsScreen())
 
@@ -892,6 +936,8 @@ class MainWindow(QMainWindow):
                 self.server_thread.connection_handler.recieve_status_from_ui)
             self.send_display_message.connect(
                 self.server_thread.connection_handler.recieve_display_from_ui)
+            self.send_transaction_response.connect(
+                self.server_thread.connection_handler.recieve_transaction_response_from_ui)
             self.server_thread.start()
 
         self.setCentralWidget(self.createIdleScreen())
@@ -927,6 +973,8 @@ class MainWindow(QMainWindow):
                     self.server_thread.connection_handler.recieve_status_from_ui)
                 self.send_display_message.disconnect(
                     self.server_thread.connection_handler.recieve_display_from_ui)
+                self.send_transaction_response.disconnect(
+                    self.server_thread.connection_handler.recieve_transaction_response_from_ui)
             except TypeError:
                 pass
         event.accept()
