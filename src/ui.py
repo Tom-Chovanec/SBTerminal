@@ -112,10 +112,35 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("SBTerminal")
+        self.setObjectName("MainWindow")
         self.setFixedSize(QSize(480, 800))
+        self.setStyleSheet("""
+        #MainWindow {
+            background-color: #181818;
+        }
+        """)
         self.setWindowState(Qt.WindowState.WindowFullScreen)
         self.setCursor(Qt.CursorShape.BlankCursor)
-        self.setStyleSheet("background-color: #181818;")
+        # self.setStyleSheet(
+        #     """
+        #     background-color: #181818;
+        #     QComboBox {
+        #         color: #E0E0E0; /* Light text for the main button */
+        #         background-color: #333333;
+        #         border: 1px solid #555555;
+        #         padding: 4px;
+        #     }
+        #
+        #     /* Style the drop-down list */
+        #     QComboBox QAbstractItemView {
+        #         color: #E0E0E0; /* Light text for the list items */
+        #         background-color: #222222;
+        #         selection-background-color: #007ACC; /* Blue highlight for selection */
+        #         selection-color: #FFFFFF; /* White text for the selected item */
+        #         border: 1px solid #555555;
+        #     }
+        #     """
+        # )
         self.card_details: dict
         self.price_text_value: str
         self.sent_message: str = ""
@@ -589,7 +614,6 @@ class MainWindow(QMainWindow):
         terminal_status_group.setStyleSheet(
             """
                 QGroupBox { font-weight: bold; font-size: 14px;}
-                color: #ffffff;
             """
         )
 
@@ -654,18 +678,17 @@ class MainWindow(QMainWindow):
         display_message_group.setStyleSheet(
             """
                 QGroupBox { font-weight: bold; font-size: 14px;}
-                color: #ffffff;
             """
         )
 
-        display_message_layout = QHBoxLayout(display_message_group)
+        display_message_layout = QVBoxLayout(display_message_group)
 
         # Text input
         self.display_message_text_input = QLineEdit()
         self.display_message_text_input.setPlaceholderText("Enter message...")
         display_message_layout.addWidget(self.display_message_text_input)
 
-        stuff = QVBoxLayout()
+        stuff = QHBoxLayout()
 
         # Numeric input
         self.display_message_numeric_input = QSpinBox()
@@ -698,7 +721,6 @@ class MainWindow(QMainWindow):
         transaction_response_group.setStyleSheet(
             """
                 QGroupBox { font-weight: bold; font-size: 14px;}
-                color: #ffffff;
             """
         )
         transaction_response_layout = QHBoxLayout(transaction_response_group)
