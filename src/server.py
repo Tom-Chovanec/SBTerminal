@@ -284,8 +284,8 @@ class ServerThread(QThread):
     def run(self):
         self.server_socket = QTcpServer()
         if not self.server_socket.listen(QHostAddress(QHostAddress.SpecialAddress.Any), self.port):
-            print(f"ERROR: Could not start server: {
-                  self.server_socket.errorString()}")
+            print(f"ERROR: Could not start server: \
+                {self.server_socket.errorString()}")
             return
 
         print(f"INFO: Listening on: {self.port}")
