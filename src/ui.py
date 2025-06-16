@@ -42,6 +42,95 @@ from server import ServerThread
 
 os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
 
+STYLESHEET = """
+#MainWindow {
+    background-color: #181818;
+}
+
+QWidget {
+    color: #F0F0F0;
+    font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+QLineEdit, QSpinBox, QDoubleSpinBox {
+    background-color: #333333;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 5px;
+}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid #007ACC;
+}
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background-color: #2A2A2A;
+    color: #777777;
+}
+
+QPushButton {
+    background-color: #007ACC;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #0099FF;
+}
+QPushButton:pressed {
+    background-color: #005FAA;
+}
+QPushButton:disabled {
+    background-color: #2A2A2A;
+    color: #777777;
+}
+
+QComboBox {
+    background-color: #333333;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 5px;
+}
+QComboBox:hover {
+    border: 1px solid #777777;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid #555555;
+}
+QComboBox QAbstractItemView {
+    background-color: #222222;
+    border: 1px solid #555555;
+    selection-background-color: #007ACC;
+    selection-color: #FFFFFF;
+    outline: 0px;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #555555;
+    border-radius: 9px;
+    background-color: #333333;
+}
+QRadioButton::indicator:hover {
+    border: 1px solid #777777;
+}
+QRadioButton::indicator:checked {
+    background-color: #007ACC;
+    border: 1px solid #007ACC;
+}
+QRadioButton:disabled {
+    color: #777777;
+}
+QRadioButton::indicator:disabled {
+    background-color: #2A2A2A;
+    border: 1px solid #444444;
+}
+"""
+
 
 def getImagePath(name: str) -> str:
     imagePath = f'assets/images/{name}'
@@ -114,33 +203,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SBTerminal")
         self.setObjectName("MainWindow")
         self.setFixedSize(QSize(480, 800))
-        self.setStyleSheet("""
-        #MainWindow {
-            background-color: #181818;
-        }
-        """)
-        self.setWindowState(Qt.WindowState.WindowFullScreen)
-        self.setCursor(Qt.CursorShape.BlankCursor)
-        # self.setStyleSheet(
-        #     """
-        #     background-color: #181818;
-        #     QComboBox {
-        #         color: #E0E0E0; /* Light text for the main button */
-        #         background-color: #333333;
-        #         border: 1px solid #555555;
-        #         padding: 4px;
-        #     }
-        #
-        #     /* Style the drop-down list */
-        #     QComboBox QAbstractItemView {
-        #         color: #E0E0E0; /* Light text for the list items */
-        #         background-color: #222222;
-        #         selection-background-color: #007ACC; /* Blue highlight for selection */
-        #         selection-color: #FFFFFF; /* White text for the selected item */
-        #         border: 1px solid #555555;
-        #     }
-        #     """
-        # )
+        self.setStyleSheet(STYLESHEET)
+        # self.setWindowState(Qt.WindowState.WindowFullScreen)
+        # self.setCursor(Qt.CursorShape.BlankCursor)
         self.card_details: dict
         self.price_text_value: str
         self.sent_message: str = ""
