@@ -51,7 +51,6 @@ QWidget {
     color: #F0F0F0;
     font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
-
 QLineEdit, QSpinBox, QDoubleSpinBox {
     background-color: #333333;
     border: 1px solid #555555;
@@ -225,7 +224,7 @@ class MainWindow(QMainWindow):
         """Creates and returns the main idle screen."""
         widget = QWidget()
         layout = QGridLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(0)
 
         logo_path = getImagePath('sb_logo.png')
@@ -259,7 +258,7 @@ class MainWindow(QMainWindow):
         """Creates and returns the settings screen with config-bound fields."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
         widget.setStyleSheet("color: white;")
@@ -334,7 +333,7 @@ class MainWindow(QMainWindow):
     def createPaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(0)
 
         # Top layout with logo
@@ -437,7 +436,7 @@ class MainWindow(QMainWindow):
     # def createManualCardDetailsScreen(self):
     #     widget = QWidget()
     #     layout = QGridLayout(widget)
-    #     layout.setContentsMargins(10, 10, 10, 10)
+    #     layout.setContentsMargins(20, 20, 20, 20)
     #     layout.setSpacing(0)
     #
     #     # Top layout with logo
@@ -572,7 +571,7 @@ class MainWindow(QMainWindow):
     def createSimplePaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(0)
 
         # Top layout with logo
@@ -626,7 +625,7 @@ class MainWindow(QMainWindow):
     def createManualPaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(0)
 
         # Top layout with logo
