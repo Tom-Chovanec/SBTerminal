@@ -113,7 +113,8 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("SBTerminal")
         self.setFixedSize(QSize(480, 800))
-        # self.setWindowState(Qt.WindowFullScreen)
+        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        self.setCursor(Qt.CursorShape.BlankCursor)
         self.setStyleSheet("background-color: #181818;")
         self.card_details: dict
         self.price_text_value: str
