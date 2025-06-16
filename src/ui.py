@@ -1,4 +1,5 @@
 import os
+import functools
 import time
 from PySide6.QtGui import (
     QPainterPath,
@@ -12,6 +13,7 @@ from PySide6.QtGui import (
 from PySide6.QtCore import (
     QSize,
     Qt,
+    QTimer,
     QPointF,
     Signal,
 )
@@ -39,8 +41,6 @@ from server import ServerThread
 
 
 os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
-
-card_details: dict
 
 
 def getImagePath(name: str) -> str:
@@ -97,7 +97,7 @@ class DiamondButton(QPushButton):
 
         # Draw the text
         painter.setPen(QColor("white"))
-        painter.setFont(QFont("Kulim Park", 25))
+        painter.setFont(QFont("Kulim Park", 20))
         painter.drawText(
             self.rect(), Qt.AlignmentFlag.AlignCenter, self.text)
 
@@ -105,8 +105,8 @@ class DiamondButton(QPushButton):
 class MainWindow(QMainWindow):
     pay_button_clicked = Signal(dict)
     send_status_signal = Signal(TerminalStatusResponseCode)
-    send_display_message = Signal(str, int, DisplayMessageLevel)
-    send_transaction_response = Signal(TransactionResponseCode, dict)
+    send_display_signal = Signal(str, int, DisplayMessageLevel)
+    send_transaction_signal = Signal(TransactionResponseCode, dict)
 
     def __init__(self):
         super().__init__()
@@ -115,8 +115,18 @@ class MainWindow(QMainWindow):
         self.setFixedSize(QSize(480, 800))
         # self.setWindowState(Qt.WindowFullScreen)
         self.setStyleSheet("background-color: #181818;")
+        self.card_details: dict
+        self.price_text_value: str
+        self.sent_message: str = ""
 
         self.server_thread: ServerThread | None = None
+
+        self.send_status_signal_message_handler = lambda code: self.update_sent_message(
+            code._name_.replace("_", " "))
+        self.send_display_signal_message_handler = lambda msg, _, __: self.update_sent_message(
+            msg)
+        self.send_transaction_signal_message_handler = lambda code, _: self.update_sent_message(
+            code._name_.replace("_", " "))
         # Set the initial screen
         self.showIdleScreen()
 
@@ -230,7 +240,7 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def createPaymentScreen(self, price_text_value: str):
+    def createPaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -262,7 +272,7 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         mainContent.addWidget(title)
 
-        price_text = QLabel(price_text_value)
+        price_text = QLabel(self.price_text_value)
         price_text.setFont(QFont("Kulim Park", 30))
         price_text.setStyleSheet(
             "color: white; font-weight: semibold; margin-left: 10px;")
@@ -278,27 +288,33 @@ class MainWindow(QMainWindow):
         manual_pay_button.setFixedSize(200, 200)
         manual_pay_button.setStyleSheet(
             "background-color: transparent; border: none;")
-        manual_pay_button.clicked.connect(self.showMessagesScreen)
-        manual_pay_button.clicked.connect(self.handlePayButtonClicked)
+        manual_pay_button.clicked.connect(self.showManualPaymentScreen)
+        manual_pay_button.clicked.connect(self.load_card_details)
 
         quick_pay_button = DiamondButton("Quick\npay")
         quick_pay_button.setFixedSize(200, 200)
         quick_pay_button.setStyleSheet(
             "background-color: transparent; border: none;")
+        quick_pay_button.clicked.connect(
+            self.showSimplePaymentScreen)
+        quick_pay_button.clicked.connect(self.load_card_details)
         quick_pay_button.clicked.connect(self.handleQuickPayButtonClicked)
 
-        simulated_pay_button = DiamondButton("Simulated\nPay")
-        simulated_pay_button.setFixedSize(200, 200)
-        simulated_pay_button.setStyleSheet(
+        example_pay_button = DiamondButton("Example\nPay")
+        example_pay_button.setFixedSize(200, 200)
+        example_pay_button.setStyleSheet(
             "background-color: transparent; border: none;")
-        simulated_pay_button.clicked.connect(
+        example_pay_button.clicked.connect(
+            self.showSimplePaymentScreen)
+        example_pay_button.clicked.connect(self.load_card_details)
+        example_pay_button.clicked.connect(
             self.handleSimulatedPayButtonClicked)
 
         button_layout.addWidget(
             manual_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         button_layout.addWidget(
-            simulated_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+            example_pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         mainContent.addLayout(button_layout)
         mainContent.addWidget(
@@ -327,7 +343,142 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def createManualCardDetailsScreen(self):
+    # def createManualCardDetailsScreen(self):
+    #     widget = QWidget()
+    #     layout = QGridLayout(widget)
+    #     layout.setContentsMargins(10, 10, 10, 10)
+    #     layout.setSpacing(0)
+    #
+    #     # Top layout with logo
+    #     topLayout = QHBoxLayout()
+    #     topLayout.addStretch()
+    #     text_logo = QLabel()
+    #     pixmap = QPixmap(getImagePath('text_logo.png'))
+    #     text_logo.setPixmap(pixmap)
+    #     text_logo.setFixedHeight(50)
+    #     topLayout.addWidget(text_logo)
+    #     layout.addLayout(topLayout, 0, 0)
+    #
+    #     # Divider line
+    #     divider = QLabel()
+    #     divider.setFixedHeight(3)
+    #     divider.setStyleSheet("background-color: white;")
+    #     layout.addWidget(divider)
+    #
+    #     # Main content
+    #     mainContent = QVBoxLayout()
+    #     mainContent.setSpacing(20)
+    #
+    #     title = QLabel("Payment")
+    #     title.setFont(QFont("Kulim Park", 30))
+    #     title.setStyleSheet(
+    #         "color: white; font-weight: semibold; margin-top: 25px;")
+    #     title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+    #     mainContent.addWidget(title)
+    #
+    #     price_text = QLabel("10.50€")
+    #     price_text.setFont(QFont("Kulim Park", 25))
+    #     price_text.setStyleSheet(
+    #         "color: white; font-weight: semibold; margin-left: 2px;")
+    #     price_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+    #     mainContent.addWidget(price_text)
+    #
+    #     # Card selection dropdown
+    #     card_label = QLabel("Please select your card")
+    #     card_label.setStyleSheet("color: white; font-size: 16px;")
+    #     mainContent.addWidget(card_label)
+    #
+    #     self.card_dropdown = QComboBox()
+    #     self.card_dropdown.addItems(
+    #         ["XX", "VS", "MC", "CA", "DC", "DN",
+    #          "IN", "AX", "JC", "MA", "CU", "DS"])
+    #     self.card_dropdown.setStyleSheet(
+    #         "background-color: white; color: #181818;")
+    #     mainContent.addWidget(self.card_dropdown)
+    #
+    #     # Card number input
+    #     self.card_number_input = QLineEdit()
+    #     self.card_number_input.setPlaceholderText("Card Number")
+    #     self.card_number_input.setStyleSheet(
+    #         "background-color: white; padding: 5px; color: #181818;")
+    #     mainContent.addWidget(self.card_number_input)
+    #
+    #     # Expiration date and security code
+    #     exp_layout = QHBoxLayout()
+    #
+    #     self.exp_month = QLineEdit()
+    #     self.exp_month.setPlaceholderText("MM")
+    #     self.exp_month.setMaxLength(2)
+    #     self.exp_month.setFixedWidth(50)
+    #     self.exp_month.setStyleSheet(
+    #         "background-color: white; padding: 5px; color: #181818;")
+    #     exp_layout.addWidget(self.exp_month)
+    #
+    #     self.exp_year = QLineEdit()
+    #     self.exp_year.setPlaceholderText("YY")
+    #     self.exp_year.setMaxLength(2)
+    #     self.exp_year.setFixedWidth(50)
+    #     self.exp_year.setStyleSheet(
+    #         "background-color: white; padding: 5px; color: #181818;")
+    #     exp_layout.addWidget(self.exp_year)
+    #
+    #     # CVV
+    #     self.cvv_input = QLineEdit()
+    #     self.cvv_input.setPlaceholderText("CVV")
+    #     self.cvv_input.setMaxLength(4)
+    #     self.cvv_input.setFixedWidth(60)
+    #     self.cvv_input.setStyleSheet(
+    #         "background-color: white; padding: 5px; color: #181818;")
+    #
+    #     exp_cvv_layout = QHBoxLayout()
+    #
+    #     exp_cvv_layout.addLayout(exp_layout)
+    #     exp_cvv_layout.addWidget(self.cvv_input)
+    #
+    #     mainContent.addLayout(exp_cvv_layout)
+    #
+    #     self.card_number_input.setInputMethodHints(
+    #         Qt.InputMethodHint.ImhDigitsOnly)
+    #     self.exp_month.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+    #     self.exp_year.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+    #     self.cvv_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
+    #
+    #     self.card_number_input.setMaxLength(19)  # 16 digits + 3 spaces
+    #     self.exp_month.setMaxLength(2)           # MM
+    #     self.exp_year.setMaxLength(2)            # YY
+    #     self.cvv_input.setMaxLength(3)
+    #
+    #     # Spacer before Pay button
+    #     mainContent.addSpacerItem(QSpacerItem(
+    #         20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+    #
+    #     # Pay button
+    #     pay_button = QPushButton("Pay")
+    #     pay_button.setStyleSheet("""
+    #         QPushButton {
+    #             background-color: #ffffff;
+    #             color: #181818;
+    #             font-size: 18px;
+    #             padding: 10px 20px;
+    #             border-radius: 5px;
+    #         }
+    #         QPushButton:hover {
+    #             background-color: #dddddd;
+    #         }
+    #     """)
+    #     pay_button.clicked.connect(self.showManualPaymentScreen)
+    #     pay_button.clicked.connect(self.handleManualPayButtonClicked)
+    #
+    #     mainContent.addWidget(
+    #         pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
+    #     mainContent.addSpacerItem(QSpacerItem(
+    #         20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
+    #
+    #     layout.addLayout(mainContent, 2, 0)
+    #
+    #     return widget
+
+    def createSimplePaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -353,116 +504,35 @@ class MainWindow(QMainWindow):
         mainContent = QVBoxLayout()
         mainContent.setSpacing(20)
 
-        title = QLabel("Payment")
-        title.setFont(QFont("Kulim Park", 30))
+        title = QLabel("Example Pay")
+        title.setFont(QFont("Kulim Park", 50))
         title.setStyleSheet(
-            "color: white; font-weight: semibold; margin-top: 25px;")
+            "color: white; font-weight: semibold; margin-top: 50px;")
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         mainContent.addWidget(title)
 
-        price_text = QLabel("10.50€")
-        price_text.setFont(QFont("Kulim Park", 25))
+        price_text = QLabel(self.price_text_value)
+        price_text.setFont(QFont("Kulim Park", 30))
         price_text.setStyleSheet(
-            "color: white; font-weight: semibold; margin-left: 2px;")
+            "color: white; font-weight: semibold; margin-left: 10px;")
         price_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
         mainContent.addWidget(price_text)
 
-        # Card selection dropdown
-        card_label = QLabel("Please select your card")
-        card_label.setStyleSheet("color: white; font-size: 16px;")
-        mainContent.addWidget(card_label)
+        self.sent_message_text = QLabel(self.sent_message)
+        self.sent_message_text.setWordWrap(True)
+        self.sent_message_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.sent_message_text.setFont(QFont("Kulim Park", 30))
+        self.sent_message_text.setStyleSheet(
+            "color: white; font-weight: semibold; margin-left: 10px;")
+        mainContent.addWidget(self.sent_message_text)
 
-        self.card_dropdown = QComboBox()
-        self.card_dropdown.addItems(
-            ["XX", "VS", "MC", "CA", "DC", "DN",
-             "IN", "AX", "JC", "MA", "CU", "DS"])
-        self.card_dropdown.setStyleSheet(
-            "background-color: white; color: #181818;")
-        mainContent.addWidget(self.card_dropdown)
-
-        # Card number input
-        self.card_number_input = QLineEdit()
-        self.card_number_input.setPlaceholderText("Card Number")
-        self.card_number_input.setStyleSheet(
-            "background-color: white; padding: 5px; color: #181818;")
-        mainContent.addWidget(self.card_number_input)
-
-        # Expiration date and security code
-        exp_layout = QHBoxLayout()
-
-        self.exp_month = QLineEdit()
-        self.exp_month.setPlaceholderText("MM")
-        self.exp_month.setMaxLength(2)
-        self.exp_month.setFixedWidth(50)
-        self.exp_month.setStyleSheet(
-            "background-color: white; padding: 5px; color: #181818;")
-        exp_layout.addWidget(self.exp_month)
-
-        self.exp_year = QLineEdit()
-        self.exp_year.setPlaceholderText("YY")
-        self.exp_year.setMaxLength(2)
-        self.exp_year.setFixedWidth(50)
-        self.exp_year.setStyleSheet(
-            "background-color: white; padding: 5px; color: #181818;")
-        exp_layout.addWidget(self.exp_year)
-
-        # CVV
-        self.cvv_input = QLineEdit()
-        self.cvv_input.setPlaceholderText("CVV")
-        self.cvv_input.setMaxLength(4)
-        self.cvv_input.setFixedWidth(60)
-        self.cvv_input.setStyleSheet(
-            "background-color: white; padding: 5px; color: #181818;")
-
-        exp_cvv_layout = QHBoxLayout()
-
-        exp_cvv_layout.addLayout(exp_layout)
-        exp_cvv_layout.addWidget(self.cvv_input)
-
-        mainContent.addLayout(exp_cvv_layout)
-
-        self.card_number_input.setInputMethodHints(
-            Qt.InputMethodHint.ImhDigitsOnly)
-        self.exp_month.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-        self.exp_year.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-        self.cvv_input.setInputMethodHints(Qt.InputMethodHint.ImhDigitsOnly)
-
-        self.card_number_input.setMaxLength(19)  # 16 digits + 3 spaces
-        self.exp_month.setMaxLength(2)           # MM
-        self.exp_year.setMaxLength(2)            # YY
-        self.cvv_input.setMaxLength(3)
-
-        # Spacer before Pay button
         mainContent.addSpacerItem(QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        # Pay button
-        pay_button = QPushButton("Pay")
-        pay_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #181818;
-                font-size: 18px;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #dddddd;
-            }
-        """)
-        pay_button.clicked.connect(self.showMessagesScreen)
-        pay_button.clicked.connect(self.handleManualPayButtonClicked)
-
-        mainContent.addWidget(
-            pay_button, alignment=Qt.AlignmentFlag.AlignCenter)
-        mainContent.addSpacerItem(QSpacerItem(
-            20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
-
         layout.addLayout(mainContent, 2, 0)
-
         return widget
 
-    def createMessagesScreen(self):
+    def createManualPaymentScreen(self):
         widget = QWidget()
         layout = QGridLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -488,14 +558,38 @@ class MainWindow(QMainWindow):
         mainContent = QVBoxLayout()
         mainContent.setSpacing(20)
 
-        # Terminal Status Section
-        terminal_status_title = QLabel("Terminal Status")
-        terminal_status_title.setStyleSheet(
-            "font-weight: bold; font-size: 14px;")
-        mainContent.addWidget(terminal_status_title)
+        title = QLabel("Manual Pay")
+        title.setFont(QFont("Kulim Park", 50))
+        title.setStyleSheet(
+            "color: white; font-weight: semibold; margin-top: 50px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(title)
 
-        terminal_status_layout = QHBoxLayout()
-        # Status options mapping
+        price_text = QLabel(self.price_text_value)
+        price_text.setFont(QFont("Kulim Park", 30))
+        price_text.setStyleSheet(
+            "color: white; font-weight: semibold; margin-left: 10px;")
+        price_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        mainContent.addWidget(price_text)
+
+        self.sent_message_text = QLabel(self.sent_message)
+        self.sent_message_text.setWordWrap(True)
+        self.sent_message_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.sent_message_text.setFont(QFont("Kulim Park", 30))
+        self.sent_message_text.setStyleSheet(
+            "color: white; font-weight: semibold; margin-left: 10px;")
+        mainContent.addWidget(self.sent_message_text)
+
+        mainContent.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+
+        # Terminal Status Section
+        terminal_status_group = QGroupBox("Terminal Status")
+        terminal_status_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; font-size: 14px;}"
+        )
+
+        terminal_status_layout = QHBoxLayout(terminal_status_group)
         self.terminal_status_response_options = [
             ("Idle", TerminalStatusResponseCode.IDLE),
             ("Card inserted", TerminalStatusResponseCode.CARD_INSERTED),
@@ -549,15 +643,15 @@ class MainWindow(QMainWindow):
             self.execute_selected_terminal_status)
         terminal_status_layout.addWidget(send_terminal_status_button)
 
-        mainContent.addLayout(terminal_status_layout)
+        mainContent.addWidget(terminal_status_group)
 
         # Display Message Section
-        display_message_title = QLabel("Display Message")
-        display_message_title.setStyleSheet(
-            "font-weight: bold; font-size: 14px;")
-        mainContent.addWidget(display_message_title)
+        display_message_group = QGroupBox("Display Message")
+        display_message_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; font-size: 14px;}"
+        )
 
-        display_message_layout = QHBoxLayout()
+        display_message_layout = QHBoxLayout(display_message_group)
 
         # Text input
         self.display_message_text_input = QLineEdit()
@@ -586,15 +680,16 @@ class MainWindow(QMainWindow):
             self.send_display_message_clicked)
         display_message_layout.addWidget(send_display_message_button)
 
-        mainContent.addLayout(display_message_layout)
+        mainContent.addWidget(display_message_group)
 
         # Transaction response section
-        transaction_response_title = QLabel("Transaction Response")
-        transaction_response_title.setStyleSheet(
-            "font-weight: bold; font-size: 14px;")
-        mainContent.addWidget(transaction_response_title)
+        transaction_response_group = QGroupBox("Transaction Response")
+        transaction_response_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; font-size: 14px;}"
+        )
 
-        transaction_response_layout = QHBoxLayout()
+        transaction_response_layout = QHBoxLayout(transaction_response_group)
+
         self.transaction_response_options = [
             ("Authorized", TransactionResponseCode.AUTHORISED),
             ("Referred", TransactionResponseCode.REFERRED),
@@ -701,7 +796,7 @@ class MainWindow(QMainWindow):
             self.execute_selected_transaction_response)
         transaction_response_layout.addWidget(send_transaction_response_button)
 
-        mainContent.addLayout(transaction_response_layout)
+        mainContent.addWidget(transaction_response_group)
 
         layout.addLayout(mainContent, 2, 0)
         return widget
@@ -712,7 +807,7 @@ class MainWindow(QMainWindow):
         level_index = self.display_message_level_dropdown.currentIndex()
         level = self.display_message_level_options[level_index][1]
 
-        self.send_display_message.emit(message, numeric_value, level)
+        self.send_display_signal.emit(message, numeric_value, level)
 
     def execute_selected_terminal_status(self):
         selected_index = self.terminal_status_dropdown.currentIndex()
@@ -724,157 +819,169 @@ class MainWindow(QMainWindow):
         selected_index = self.transaction_response_dropdown.currentIndex()
         selected_option = self.transaction_response_options[selected_index]
 
-        global card_details
-        self.send_transaction_response.emit(selected_option[1], card_details)
+        self.send_transaction_signal.emit(
+            selected_option[1], self.card_details)
 
-    def handleSimulatedPayButtonClicked(self):
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.INSERT_CARD)
+    def update_sent_message(self, message: str):
+        self.sent_message = message
+        self.sent_message_text.setText(self.sent_message)
 
-        time.sleep(0.5)
+    def handleSimulatedPayButtonClicked(self, step: int = 0):
+        if step == 0:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.INSERT_CARD)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=1))
+        elif step == 1:
+            self.send_display_signal.emit(
+                "4,00 Insert card",
+                1,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=2))
+        elif step == 2:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.CARD_INSERTED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=3))
+        elif step == 3:
+            self.send_display_signal.emit(
+                "Please wait",
+                2,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=4))
+        elif step == 4:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.CARD_IDENTIFICATION)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=5))
+        elif step == 5:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.CHIP_CARD_ACCEPTED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=6))
+        elif step == 6:
+            self.send_display_signal.emit(
+                "Credit Card Amex",
+                3,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=7))
+        elif step == 7:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.ENTER_PIN)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=8))
+        elif step == 8:
+            self.send_display_signal.emit(
+                "4,00 $ Enter PIN",
+                10,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=9))
+        elif step == 9:
+            self.send_display_signal.emit(
+                "*   ",
+                11,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=10))
+        elif step == 10:
+            self.send_display_signal.emit(
+                "**  ",
+                12,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=11))
+        elif step == 11:
+            self.send_display_signal.emit(
+                "*** ",
+                13,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=12))
+        elif step == 12:
+            self.send_display_signal.emit(
+                "****",
+                14,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=13))
+        elif step == 13:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.PIN_ACCEPTED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=14))
+        elif step == 14:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.AUTHORIZATION_PROCESSING)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=15))
+        elif step == 15:
+            self.send_display_signal.emit(
+                "Please wait",
+                1,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=16))
+        elif step == 16:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.AUTHORIZATION_APPROVED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=17))
+        elif step == 17:
+            self.send_display_signal.emit(
+                "Accepted Take card",
+                100,
+                DisplayMessageLevel.INFO)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=18))
+        elif step == 18:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.CARD_REMOVED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=19))
+        elif step == 19:
+            self.send_transaction_signal.emit(
+                TransactionResponseCode.AUTHORISED,
+                self.card_details
+            )
+            QTimer.singleShot(500, functools.partial(
+                self.handleSimulatedPayButtonClicked, step=20))
 
-        self.send_display_message.emit(
-            "4,00 Insert card",
-            1,
-            DisplayMessageLevel.INFO)
+    def handleQuickPayButtonClicked(self, step: int = 0):
+        if step == 0:
+            self.send_status_signal.emit(
+                TerminalStatusResponseCode.CARD_INSERTED)
+            QTimer.singleShot(500, functools.partial(
+                self.handleQuickPayButtonClicked, step=1))
+        elif step == 1:
+            self.send_transaction_signal.emit(
+                TransactionResponseCode.AUTHORISED,
+                self.card_details
+            )
+            QTimer.singleShot(500, functools.partial(
+                self.handleQuickPayButtonClicked, step=2))
 
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.CARD_INSERTED)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "Please wait",
-            2,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.CARD_IDENTIFICATION)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.CHIP_CARD_ACCEPTED)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "Credit Card Amex",
-            3,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.ENTER_PIN)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "4,00 $ Enter PIN",
-            10,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "*   ",
-            11,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "**  ",
-            12,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "*** ",
-            13,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "****",
-            14,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.PIN_ACCEPTED)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.AUTHORIZATION_PROCESSING)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "Please wait",
-            1,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.AUTHORIZATION_APPROVED)
-
-        time.sleep(0.5)
-
-        self.send_display_message.emit(
-            "Accepted Take card",
-            100,
-            DisplayMessageLevel.INFO)
-
-        time.sleep(0.5)
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.CARD_REMOVED)
-
-        time.sleep(0.5)
-
-        self.handlePayButtonClicked()
-        self.pay_button_clicked.emit(card_details)
-
-    def handleQuickPayButtonClicked(self):
-
-        self.send_status_signal.emit(
-            TerminalStatusResponseCode.CARD_INSERTED)
-
-        time.sleep(0.2)
-
-        self.handlePayButtonClicked()
-        self.pay_button_clicked.emit(card_details)
-
-    def handlePayButtonClicked(self):
-        global config, card_details
-        card_details = {
+    def load_card_details(self):
+        global config
+        self.card_details = {
             "card_number": config.card_number,
             "expiration_date": config.expiration_date,
             "cvv": config.cvv,
             "card_issuer": config.card_issuer
         }
-        print(f"INFO: Saved card details:\n {card_details}")
+        print(f"INFO: Saved card details:\n {self.card_details}")
 
-    def handleManualPayButtonClicked(self):
-        global card_details
-        card_details = {
-            "card_number": self.card_number_input.text(),
-            "expiration_date": self.exp_month.text() + self.exp_year.text(),
-            "cvv": self.cvv_input.text(),
-            "card_issuer": self.card_dropdown.currentText()
-        }
-        print(f"INFO: Saved card details:\n {card_details}")
+    # def handleManualPayButtonClicked(self):
+    #     self.card_details = {
+    #         "card_number": self.card_number_input.text(),
+    #         "expiration_date": self.exp_month.text() + self.exp_year.text(),
+    #         "cvv": self.cvv_input.text(),
+    #         "card_issuer": self.card_dropdown.currentText()
+    #     }
+    #     print(f"INFO: Saved card details:\n {self.card_details}")
 
     def saveSettings(self):
         global config
@@ -909,9 +1016,9 @@ class MainWindow(QMainWindow):
                     self.server_thread.connection_handler.send_payment)
                 self.send_status_signal.disconnect(
                     self.server_thread.connection_handler.recieve_status_from_ui)
-                self.send_display_message.disconnect(
+                self.send_display_signal.disconnect(
                     self.server_thread.connection_handler.recieve_display_from_ui)
-                self.send_transaction_response.disconnect(
+                self.send_transaction_signal.disconnect(
                     self.server_thread.connection_handler.recieve_transaction_response_from_ui)
             except TypeError:
                 pass
@@ -934,29 +1041,45 @@ class MainWindow(QMainWindow):
                 self.server_thread.connection_handler.send_payment)
             self.send_status_signal.connect(
                 self.server_thread.connection_handler.recieve_status_from_ui)
-            self.send_display_message.connect(
+            self.send_display_signal.connect(
                 self.server_thread.connection_handler.recieve_display_from_ui)
-            self.send_transaction_response.connect(
+            self.send_transaction_signal.connect(
                 self.server_thread.connection_handler.recieve_transaction_response_from_ui)
+            self.send_status_signal.connect(
+                self.send_status_signal_message_handler)
+            self.send_display_signal.connect(
+                self.send_display_signal_message_handler)
+            self.send_transaction_signal.connect(
+                self.send_transaction_signal_message_handler)
+
             self.server_thread.start()
 
         self.setCentralWidget(self.createIdleScreen())
 
     def showPaymentScreen(self, price: str):
         """Switches to the payment screen."""
-        self.setCentralWidget(self.createPaymentScreen(price))
+        self.price_text_value = price
+        self.setCentralWidget(self.createPaymentScreen())
 
     def showManualCardDetailsScreen(self):
         """Switches to the manual card details screen."""
         self.setCentralWidget(self.createManualCardDetailsScreen())
 
-    def showMessagesScreen(self):
+    def showSimplePaymentScreen(self):
+        """Switches to the payment screen."""
+        if self.server_thread is None:
+            print("ERROR: No server thread")
+            return
+
+        self.setCentralWidget(self.createSimplePaymentScreen())
+
+    def showManualPaymentScreen(self):
         """Switches to the messages screen."""
         if self.server_thread is None:
             print("ERROR: No server thread")
             return
 
-        self.setCentralWidget(self.createMessagesScreen())
+        self.setCentralWidget(self.createManualPaymentScreen())
 
     def closeEvent(self, event):
         """Ensures the server thread is stopped when the window is closed."""
@@ -971,10 +1094,16 @@ class MainWindow(QMainWindow):
                     self.server_thread.connection_handler.send_payment)
                 self.send_status_signal.disconnect(
                     self.server_thread.connection_handler.recieve_status_from_ui)
-                self.send_display_message.disconnect(
+                self.send_display_signal.disconnect(
                     self.server_thread.connection_handler.recieve_display_from_ui)
-                self.send_transaction_response.disconnect(
+                self.send_transaction_signal.disconnect(
                     self.server_thread.connection_handler.recieve_transaction_response_from_ui)
+                self.send_status_signal.disconnect(
+                    self.send_status_signal_message_handler)
+                self.send_display_signal.disconnect(
+                    self.send_display_signal_message_handler)
+                self.send_transaction_signal.disconnect(
+                    self.send_transaction_signal_message_handler)
             except TypeError:
                 pass
         event.accept()
