@@ -38,6 +38,7 @@ class ConnectionHandler(QObject):
         self.running = True
         self.conn: QTcpSocket
         self.idle_message_timer = QTimer(self)
+        log_event("ConnectionHandler initialized", TerminalStatusResponseCode.INITIALIZATION_PROCESSING, "info")  
 
     def sendXML(self, xml: str):
         padded_xml: str = f"\x02\n{xml}\x03"
@@ -64,8 +65,6 @@ class ConnectionHandler(QObject):
             print("ERROR: No connection")
             log_event("No connection", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")
 
-    
-
     def start_idle_message_timer(self, timeout: int):
         self.stop_idle_message_timer()  # Stop any existing timer
 
@@ -73,12 +72,11 @@ class ConnectionHandler(QObject):
             self.idle_message_timer.timeout.connect(
                 self.send_idle_message_timed)
             self.idle_message_timer.start((timeout - 2) * 1000)
-            print(f"INFO: Idle message timer started with interval {
-                  timeout - 2} seconds")
-            log_event(f"Idle message timer started with interval {timeout - 2} seconds", "info")
+            print(f"INFO: Idle message timer started with interval {timeout - 2} seconds")
+            log_event(f"Idle message timer started with interval {timeout - 2} seconds", TerminalStatusResponseCode.IDLE, "info")  
         else:
             print("WARN: Timeout is 0, idle message timer not started.")
-            log_event("Timeout is 0, idle message timer not started.", "warning")
+            log_event("Timeout is 0, idle message timer not started.", TerminalStatusResponseCode.TERMINAL_IS_BUSY, "warning")  
 
     def stop_idle_message_timer(self):
         if self.idle_message_timer.isActive():
@@ -86,15 +84,16 @@ class ConnectionHandler(QObject):
             try:
                 self.idle_message_timer.timeout.disconnect(
                     self.send_idle_message_timed)
-                log_event("Idle message timer stopped", "info")
+                log_event("Idle message timer stopped", TerminalStatusResponseCode.IDLE, "info")  
             except TypeError:
                 pass
             print("INFO: Idle message timer stopped")
-            log_event("Id")
+            log_event("Idle message timer stopped", TerminalStatusResponseCode.IDLE, "info")  
 
     def send_payment(self, card_details: dict):
         global price, currency_code
         print("send payment")
+        log_event(f"Processing payment for card ending {card_details.get('card_number', '')[-4:]}", TerminalStatusResponseCode.AUTHORIZATION_PROCESSING, "info")  
 
         transaction_response_dict = MessageGenerator.get_transaction_emv_response_message(
             default_tags=default_tags,
@@ -112,28 +111,34 @@ class ConnectionHandler(QObject):
         if self.conn is not None:
             self.sendXML(transaction_response)
             print("INFO: Sent transaction response")
+            log_event("Sent transaction response", TerminalStatusResponseCode.AUTHORIZATION_APPROVED, "info")  
         else:
             print("ERROR: No connection")
+            log_event("No connection when sending payment", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")  
 
     def handle_connection(self, conn: QTcpSocket):
         self.conn = conn
 
         self.client_connected.emit()
+        log_event("Client connected", TerminalStatusResponseCode.IDLE, "info")  
 
         if self.conn:
             self.conn.readyRead.connect(self.read_data)
             self.conn.disconnected.connect(self.on_client_disconnected)
         else:
             print("ERROR: No conn")
+            log_event("No QTcpSocket object on handle_connection", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")  
 
     def read_data(self):
         global price, currency_code
         data = self.conn.readAll()
 
         print("INFO: Received data")
+        log_event("Received data from client", TerminalStatusResponseCode.IDLE, "info")  
 
         xml_cleaned = clean_xml(data.data().decode())
         parsed_xml = XMLParser.parse(xml_cleaned)
+        log_event(f"Parsed XML: {xml_cleaned}", TerminalStatusResponseCode.IDLE, "debug")  
 
         if config.send_rsp_before_timeout:
             timeout_value = XMLParser.get_value(
@@ -143,26 +148,32 @@ class ConnectionHandler(QObject):
 
             if timeout != 0:
                 print(f'INFO: Setting timeout interval to "{timeout}"')
+                log_event(f'Setting timeout interval to "{timeout}"', TerminalStatusResponseCode.IDLE, "info")  
                 self.start_idle_message_timer(timeout)
             else:
                 print('WARN: Timeout is "0"')
+                log_event('Timeout is "0"', TerminalStatusResponseCode.TERMINAL_IS_BUSY, "warning")  
 
         price = XMLParser.get_value(
             parsed_xml, 'TransactionAmount', '0.00')
         currency_code = XMLParser.get_value(
             parsed_xml, 'CurrencyCode', '')
 
+        log_event(f"Price updated: {price} {currency_code}", TerminalStatusResponseCode.IDLE, "info")  
         self.price_updated.emit(f"{price} {currency_code}")
 
     def on_client_disconnected(self):
         print("INFO: Client disconnected")
+        log_event("Client disconnected", TerminalStatusResponseCode.CARD_REMOVED, "info")  
         self.stop_idle_message_timer()
         self.client_disconnected.emit()
         self.conn = None
 
 
 def clean_xml(xml: str) -> str:
-    return xml.strip("\x02\x03")
+    cleaned = xml.strip("\x02\x03")
+    log_event(f"Cleaned XML: {cleaned}", TerminalStatusResponseCode.IDLE, "debug")  
+    return cleaned
 
 
 class ServerThread(QThread):
@@ -173,15 +184,17 @@ class ServerThread(QThread):
         self.connection_handler = ConnectionHandler()
         self.connection_handler.moveToThread(self)
         self.conn = None
+        log_event(f"ServerThread initialized on {ip}:{port}", TerminalStatusResponseCode.INITIALIZATION_PROCESSING, "info")  
 
     def run(self):
         self.server_socket = QTcpServer()
         if not self.server_socket.listen(QHostAddress(self.ip), self.port):
-            print(f"ERROR: Could not start server: {
-                  self.server_socket.errorString()}")
+            print(f"ERROR: Could not start server: {self.server_socket.errorString()}")
+            log_event(f"Could not start server: {self.server_socket.errorString()}", TerminalStatusResponseCode.TERMINAL_UNAVAILABLE, "error")  
             return
 
         print(f"INFO: Listening on: {self.ip}:{self.port}")
+        log_event(f"Listening on: {self.ip}:{self.port}", TerminalStatusResponseCode.IDLE, "info")  
 
         self.server_socket.newConnection.connect(self.on_new_connection)
 
@@ -189,20 +202,25 @@ class ServerThread(QThread):
 
     def on_new_connection(self):
         print("INFO: Client connected")
+        log_event("New client connection", TerminalStatusResponseCode.IDLE, "info")  
         conn = self.server_socket.nextPendingConnection()
         self.connection_handler.handle_connection(conn)
 
     def stop(self):
-        if self.server_socket:
+        if hasattr(self, 'server_socket') and self.server_socket:
             self.server_socket.close()
+            log_event("Server socket closed", TerminalStatusResponseCode.DEACTIVATION_PROCESSING, "info")  
         self.quit()
         self.wait()
+        log_event("Server thread stopped", TerminalStatusResponseCode.DEACTIVATION_PROCESSING, "info")  
 
 
 def main() -> None:
+    log_event("Application starting", TerminalStatusResponseCode.INITIALIZATION_PROCESSING, "info")  
     app = QApplication([])
 
     window = MainWindow()
+    log_event("MainWindow initialized", TerminalStatusResponseCode.INITIALIZATION_PROCESSING, "info")
     server_thread = ServerThread(config.ip_address, config.port, window)
 
     server_thread.connection_handler.price_updated.connect(
@@ -215,9 +233,11 @@ def main() -> None:
 
     server_thread.start()
     window.show()
+    log_event("Main window shown, server thread started", TerminalStatusResponseCode.INITIALIZATION_PROCESSING, "info")  
 
     app.exec()
     server_thread.stop()
+    log_event("Application exited", TerminalStatusResponseCode.DEACTIVATION_PROCESSING, "info")  
 
 
 if __name__ == "__main__":
