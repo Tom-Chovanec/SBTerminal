@@ -89,8 +89,8 @@ def load_config() -> Config:
         yaml_config.setdefault(key, value)
     new_keys = set(yaml_config.keys()) - original_keys
     if new_keys:
-        print(f'WARN: Keys "{new_keys}" are missing from "{
-              filepath}", loading them from default config')
+        print(f'WARN: Keys "{new_keys}" are missing from " \
+            {filepath}", loading them from default config')
         save_config(dict_to_config(yaml_config))
 
     return dict_to_config(yaml_config)

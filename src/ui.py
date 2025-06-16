@@ -586,7 +586,10 @@ class MainWindow(QMainWindow):
         # Terminal Status Section
         terminal_status_group = QGroupBox("Terminal Status")
         terminal_status_group.setStyleSheet(
-            "QGroupBox { font-weight: bold; font-size: 14px;}"
+            """
+                QGroupBox { font-weight: bold; font-size: 14px;}
+                color: #ffffff;
+            """
         )
 
         terminal_status_layout = QHBoxLayout(terminal_status_group)
@@ -648,7 +651,10 @@ class MainWindow(QMainWindow):
         # Display Message Section
         display_message_group = QGroupBox("Display Message")
         display_message_group.setStyleSheet(
-            "QGroupBox { font-weight: bold; font-size: 14px;}"
+            """
+                QGroupBox { font-weight: bold; font-size: 14px;}
+                color: #ffffff;
+            """
         )
 
         display_message_layout = QHBoxLayout(display_message_group)
@@ -658,11 +664,13 @@ class MainWindow(QMainWindow):
         self.display_message_text_input.setPlaceholderText("Enter message...")
         display_message_layout.addWidget(self.display_message_text_input)
 
+        stuff = QVBoxLayout()
+
         # Numeric input
         self.display_message_numeric_input = QSpinBox()
         self.display_message_numeric_input.setRange(0, 9999)
         self.display_message_numeric_input.setValue(0)
-        display_message_layout.addWidget(self.display_message_numeric_input)
+        stuff.addWidget(self.display_message_numeric_input)
 
         # Display message level dropdown
         self.display_message_level_dropdown = QComboBox()
@@ -672,22 +680,26 @@ class MainWindow(QMainWindow):
         ]
         self.display_message_level_dropdown.addItems([option[0]
                                                       for option in self.display_message_level_options])
-        display_message_layout.addWidget(self.display_message_level_dropdown)
+        stuff.addWidget(self.display_message_level_dropdown)
 
         # Send display message button
         send_display_message_button = QPushButton("Send Display Message")
         send_display_message_button.clicked.connect(
             self.send_display_message_clicked)
-        display_message_layout.addWidget(send_display_message_button)
+        stuff.addWidget(send_display_message_button)
+
+        display_message_layout.addLayout(stuff)
 
         mainContent.addWidget(display_message_group)
 
         # Transaction response section
         transaction_response_group = QGroupBox("Transaction Response")
         transaction_response_group.setStyleSheet(
-            "QGroupBox { font-weight: bold; font-size: 14px;}"
+            """
+                QGroupBox { font-weight: bold; font-size: 14px;}
+                color: #ffffff;
+            """
         )
-
         transaction_response_layout = QHBoxLayout(transaction_response_group)
 
         self.transaction_response_options = [

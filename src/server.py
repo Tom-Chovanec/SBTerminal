@@ -26,8 +26,8 @@ class ConnectionHandler(QObject):
     def sendXML(self, xml: str):
         if self.is_stopping or not self.conn:
             if not self.is_stopping:
-                print(
-                    "ERROR: Cannot send XML, no connected socket or handler is stopping")
+                print("ERROR: Cannot send XML, \
+                     no connected socket or handler is stopping")
             return
 
         padded_xml: str = f"\x02\n{xml}\x03"
@@ -58,8 +58,8 @@ class ConnectionHandler(QObject):
             self.idle_message_timer.timeout.connect(
                 self.send_idle_message_timed)
             self.idle_message_timer.start((timeout - 2) * 1000)
-            print(f"INFO: Idle message timer started with interval {
-                  timeout - 2} seconds")
+            print(f"INFO: Idle message timer started with interval \
+                {timeout - 2} seconds")
         else:
             print("WARN: Timeout is 0, idle message timer not started.")
 
