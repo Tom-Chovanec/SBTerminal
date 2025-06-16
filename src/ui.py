@@ -203,8 +203,8 @@ class MainWindow(QMainWindow):
         self.setObjectName("MainWindow")
         self.setFixedSize(QSize(480, 800))
         self.setStyleSheet(STYLESHEET)
-        # self.setWindowState(Qt.WindowState.WindowFullScreen)
-        # self.setCursor(Qt.CursorShape.BlankCursor)
+        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        self.setCursor(Qt.CursorShape.BlankCursor)
         self.card_details: dict
         self.price_text_value: str
         self.sent_message: str = ""
