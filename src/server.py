@@ -1,6 +1,8 @@
 from PySide6.QtCore import QThread, Signal, QObject, QTimer, Slot
 from PySide6.QtNetwork import QAbstractSocket, QTcpServer, QHostAddress, QTcpSocket
 import time
+import socket
+import functools
 
 from xml_parser import XMLParser
 from terminal_config import config
@@ -183,6 +185,9 @@ class ConnectionHandler(QObject):
         else:
             print("ERROR: No connection")
 
+        QTimer.singleShot(500, functools.partial(
+            self.send_cancelation_response))
+
     def send_cancelation_response(self):
         cancel_response_dict = MessageGenerator.get_transaction_emv_response_message(
             default_tags=default_tags,
@@ -249,8 +254,6 @@ class ConnectionHandler(QObject):
             )
         elif XMLParser.get_value(parsed_xml, "TransactionCancelEMV"):
             self.send_cancelation_approval()
-            time.sleep(0.2)
-            self.send_cancelation_response()
 
         self.price_updated.emit(f"{price} {currency_code}")
 
@@ -276,10 +279,22 @@ class ServerThread(QThread):
     def __init__(self, port, parent=None):
         super().__init__(parent)
         self.port = port
+        self.ip: str = ""
         self.connection_handler = ConnectionHandler()
         self.connection_handler.moveToThread(self)
         self.conn = None
         self.is_stopping = False
+
+    def get_ip(self) -> str:
+        ip = ""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+        except Exception as e:
+            print(f"WARNING: Could not determine device IP address: {e}")
+        return ip
 
     def run(self):
         self.server_socket = QTcpServer()
@@ -288,7 +303,9 @@ class ServerThread(QThread):
                 {self.server_socket.errorString()}")
             return
 
-        print(f"INFO: Listening on: {self.port}")
+        self.ip = self.get_ip()
+
+        print(f"INFO: Listening on: {self.ip}:{self.port}")
 
         self.server_socket.newConnection.connect(self.on_new_connection)
 

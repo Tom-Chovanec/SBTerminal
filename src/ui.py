@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     QTimer,
     QPointF,
     Signal,
+    Slot,
 )
 from PySide6.QtWidgets import (
     QLabel,
@@ -289,6 +290,7 @@ class MainWindow(QMainWindow):
         self.card_number_input_settings.setPlaceholderText("Card Number")
         card_layout.addWidget(self.card_number_input_settings)
 
+        x = QHBoxLayout()
         exp_layout = QHBoxLayout()
         self.exp_month_settings = QLineEdit(
             config.expiration_date[:2])
@@ -302,22 +304,29 @@ class MainWindow(QMainWindow):
         self.exp_year_settings.setFixedWidth(50)
         exp_layout.addWidget(self.exp_year_settings)
 
+        cvv_layout = QHBoxLayout()
         self.cvv_input_settings = QLineEdit(config.cvv)
         self.cvv_input_settings.setPlaceholderText("CVV")
         self.cvv_input_settings.setFixedWidth(60)
-        exp_layout.addWidget(self.cvv_input_settings)
+        cvv_layout.addWidget(self.cvv_input_settings)
 
-        card_layout.addLayout(exp_layout)
+        x.addLayout(exp_layout)
+        x.addLayout(cvv_layout)
+        card_layout.addLayout(x)
         card_group.setLayout(card_layout)
         layout.addWidget(card_group)
 
         network_group = QGroupBox("Network Settings")
 
         network_group.setStyleSheet("QGroupBox { color: white; }")
-        network_layout = QFormLayout()
+        network_layout = QHBoxLayout()
+        self.ip_addres_input = QLineEdit(self.ip)
+        self.ip_addres_input.setEnabled(False)
+        self.ip_addres_input.setStyleSheet("color: #aaaaaa")
         self.port_input = QLineEdit(str(config.port))
         self.port_input.setValidator(QIntValidator(1, 65535))
-        network_layout.addRow("Port:", self.port_input)
+        network_layout.addWidget(self.ip_addres_input)
+        network_layout.addWidget(self.port_input)
         network_group.setLayout(network_layout)
         layout.addWidget(network_group)
 
@@ -1153,6 +1162,8 @@ class MainWindow(QMainWindow):
 
             self.server_thread.start()
 
+            self.ip = self.server_thread.get_ip()
+
         self.setCentralWidget(self.createIdleScreen())
 
     def showPaymentScreen(self, price: str):
@@ -1160,9 +1171,9 @@ class MainWindow(QMainWindow):
         self.price_text_value = price
         self.setCentralWidget(self.createPaymentScreen())
 
-    def showManualCardDetailsScreen(self):
-        """Switches to the manual card details screen."""
-        self.setCentralWidget(self.createManualCardDetailsScreen())
+    # def showManualCardDetailsScreen(self):
+    #     """Switches to the manual card details screen."""
+    #     self.setCentralWidget(self.createManualCardDetailsScreen())
 
     def showSimplePaymentScreen(self):
         """Switches to the payment screen."""
